@@ -1,0 +1,1431 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>公文一键排版工具</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<style>
+:root{
+  --red:#8B1A1A;--red2:#B52A2A;--bg:#F4F1EC;--panel:#FDFCFA;
+  --border:#D8D0C4;--text:#1A1612;--muted:#6B5F50;
+  --green:#2E7D32;--orange:#E65100;--blue:#1565C0;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'SimSun','宋体',serif;min-height:100vh;display:flex;flex-direction:column;}
+
+header{background:var(--red);color:#fff;padding:0 36px;height:56px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,.2);position:sticky;top:0;z-index:100;}
+header h1{font-size:17px;font-family:'SimHei','黑体',sans-serif;letter-spacing:2px;}
+.hd-sub{font-size:11px;background:rgba(255,255,255,.12);padding:3px 10px;border-radius:2px;color:rgba(255,255,255,.8);}
+
+.wrap{max-width:1280px;width:100%;margin:0 auto;padding:20px 28px;flex:1;display:flex;flex-direction:column;gap:16px;}
+
+.card{background:var(--panel);border:1px solid var(--border);border-radius:4px;box-shadow:0 1px 5px rgba(0,0,0,.06);}
+.ch{padding:11px 18px;border-bottom:1px solid var(--border);background:#F9F7F4;border-radius:4px 4px 0 0;display:flex;align-items:center;justify-content:space-between;}
+.ct{font-size:13px;font-family:'SimHei',sans-serif;color:var(--red);display:flex;align-items:center;gap:8px;}
+.ct::before{content:'';display:inline-block;width:3px;height:13px;background:var(--red);border-radius:2px;}
+.cb{padding:18px;}
+
+.stds{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.std{background:#F9F7F4;border:1px solid var(--border);border-radius:3px;padding:9px 13px;font-size:12px;color:var(--muted);line-height:1.75;}
+.std strong{display:block;font-family:'SimHei',sans-serif;font-size:12.5px;color:var(--text);margin-bottom:2px;}
+
+.tbl-note{background:#FFF8E1;border:1px solid #FFE082;border-radius:3px;padding:9px 14px;font-size:12px;color:#5D4037;line-height:1.75;margin-top:12px;}
+.tbl-note strong{font-family:'SimHei',sans-serif;}
+
+/* ── 表格选项区 ── */
+.tbl-opts-section{margin-top:12px;padding:10px 14px;background:#F0F4FF;border:1px solid #C5CAE9;border-radius:3px;}
+.tbl-opts-title{font-size:12.5px;font-family:'SimHei',sans-serif;color:#283593;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.tbl-opts-title::before{content:'📋';font-style:normal;}
+.tbl-opts-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+.tbl-opt-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer;padding:5px 10px;border:1px solid var(--border);border-radius:3px;background:#fff;user-select:none;transition:.15s;}
+.tbl-opt-item:hover{border-color:#3F51B5;color:var(--text);}
+.tbl-opt-item input{accent-color:#3F51B5;width:13px;height:13px;cursor:pointer;}
+.tbl-line-sel{font-size:12px;border:1px solid var(--border);border-radius:3px;padding:4px 8px;outline:none;font-family:'SimHei',sans-serif;color:var(--text);background:#fff;cursor:pointer;}
+.tbl-line-sel:focus{border-color:#3F51B5;}
+
+/* ── 预览区表格样式 ── */
+.pv-table-block{margin:6px 0;text-indent:0;}
+.pv-table-caption{font-family:'FangSong','仿宋',serif;font-size:15px;text-align:center;text-indent:0;font-weight:bold;margin-bottom:2px;}
+.pv-table-real{border-collapse:collapse;width:100%;font-family:'FangSong','仿宋',serif;font-size:13px;table-layout:auto;}
+.pv-table-real th,.pv-table-real td{padding:4px 8px;word-break:break-all;}
+.pv-table-real.style-full th,.pv-table-real.style-full td{border:1px solid #555;}
+.pv-table-real.style-three thead tr{border-top:2px solid #333;border-bottom:1.5px solid #333;}
+.pv-table-real.style-three thead th{border-left:none;border-right:none;}
+.pv-table-real.style-three tbody tr{border-bottom:none;}
+.pv-table-real.style-three tbody td{border-left:none;border-right:none;border-top:none;border-bottom:none;}
+.pv-table-real.style-three tbody tr:last-child{border-bottom:1.5px solid #333;}
+.pv-table-real.style-three th,.pv-table-real.style-three td{border:none;}
+.pv-table-real.style-three{border-top:2px solid #333;border-bottom:2px solid #333;}
+.pv-table-real.style-three thead{border-bottom:1.5px solid #333;}
+.pv-table-info{font-size:11px;color:#888;margin-top:2px;text-align:right;}
+/* 表格行高亮（操作按钮区） */
+.pv-row.table-row .pv-actions{display:none!important;}
+
+.upzone{border:2px dashed var(--border);border-radius:6px;padding:36px 24px;text-align:center;cursor:pointer;transition:.2s;background:#fff;position:relative;}
+.upzone:hover,.upzone.over{border-color:var(--red);background:#FDF8F8;}
+.upzone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.up-icon{font-size:34px;opacity:.5;margin-bottom:8px;}
+.up-main{font-size:15px;font-family:'SimHei',sans-serif;margin-bottom:4px;}
+.up-sub{font-size:12.5px;color:var(--muted);}
+.up-note{margin-top:5px;font-size:11.5px;color:#B0A898;}
+
+.finfo{display:none;align-items:center;gap:12px;padding:10px 14px;background:#F0F7F0;border:1px solid #A5D6A7;border-radius:4px;margin-top:10px;}
+.finfo.on{display:flex;}
+.fi-name{font-size:14px;font-weight:bold;color:var(--green);}
+.fi-meta{font-size:12px;color:var(--muted);margin-top:2px;}
+.fi-rm{margin-left:auto;font-size:12px;color:#C0392B;cursor:pointer;padding:4px 10px;border:1px solid #E8C4C4;border-radius:3px;background:#fff;font-family:'SimHei',sans-serif;}
+.fi-rm:hover{background:#FDF0F0;}
+
+.title-row{display:flex;gap:10px;align-items:center;margin-top:12px;}
+.tlabel{font-size:12.5px;color:var(--muted);white-space:nowrap;font-family:'SimHei',sans-serif;min-width:72px;}
+.tinput{flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:3px;font-family:'SimSun',serif;font-size:14px;outline:none;transition:.2s;}
+.tinput:focus{border-color:var(--red);}
+.tinput.warn{border-color:#FF8F00;background:#FFFDE7;}
+.tnote{font-size:11.5px;color:#B0A898;white-space:nowrap;}
+
+.opts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;}
+.opt{display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--border);border-radius:3px;cursor:pointer;font-size:12.5px;color:var(--muted);background:#fff;transition:.15s;user-select:none;}
+.opt:hover{border-color:var(--red);color:var(--text);}
+.opt input{accent-color:var(--red);width:14px;height:14px;cursor:pointer;}
+
+/* ── 预览区 ── */
+.pvwrap{min-height:320px;background:#fff;border:1px solid var(--border);border-radius:3px;overflow-y:auto;position:relative;}
+.pv-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#C0B8AC;gap:8px;font-size:13px;}
+.pvbody{padding:28px 40px;display:none;line-height:2.0;}
+.pvbody.on{display:block;}
+
+/* 预览段落样式 */
+.pv-doc-title{text-align:center;font-family:'SimSun',serif;font-size:20px;font-weight:normal;margin-bottom:2px;}
+.pv-subtitle{font-family:'KaiTi','楷体',serif;font-size:15px;font-weight:bold;text-align:center;text-indent:0;}
+.pv-blank{margin:0;min-height:1.8em;}
+.pv-h1{font-family:'SimHei','黑体',sans-serif;font-size:15px;font-weight:normal;text-indent:2em;margin-top:0.8em;}
+.pv-h2{font-family:'KaiTi','楷体',serif;font-size:15px;font-weight:bold;text-indent:2em;}
+.pv-h3{font-family:'FangSong','仿宋',serif;font-size:15px;font-weight:bold;text-indent:2em;}
+.pv-h4,.pv-body{font-family:'FangSong','仿宋',serif;font-size:15px;text-indent:2em;}
+.pv-figcaption{font-family:'FangSong','仿宋',serif;font-size:15px;text-align:center;text-indent:0;color:#555;}
+.pv-table{font-size:12.5px;color:#888;padding:5px 10px;background:#F5F5F5;border:1px dashed #CCC;border-radius:2px;margin:3px 0;text-indent:0;}
+
+/* ── 疑似项内联标注 ── */
+.pv-row{position:relative;display:flex;align-items:baseline;gap:0;}
+.pv-row .pv-text{flex:1;}
+/* 疑似标题高亮 */
+.pv-row.auto-numbered .pv-text{background:#FFF3E0;border-left:3px solid #FF6D00;padding-left:6px;border-radius:2px;}
+
+/* 内联操作按钮 */
+.pv-actions{display:none;align-items:center;gap:4px;margin-left:8px;flex-shrink:0;}
+.pv-row:hover .pv-actions,.pv-row.suspect .pv-actions,.pv-row.suspect-title .pv-actions,.pv-row.suspect-subtitle .pv-actions{display:flex;}
+.pv-tag{font-size:11px;padding:2px 7px;border-radius:10px;cursor:pointer;border:1px solid;font-family:'SimHei',sans-serif;white-space:nowrap;transition:.1s;}
+.pv-tag:hover{opacity:.8;}
+.tag-title{background:#E3F2FD;color:#1565C0;border-color:#90CAF9;}
+.tag-subtitle{background:#F3E5F5;color:#6A1B9A;border-color:#CE93D8;}
+.tag-h1{background:#FCE4EC;color:#880E4F;border-color:#F48FB1;}
+.tag-h2{background:#FFF3E0;color:#E65100;border-color:#FFCC02;}
+.tag-h3{background:#F1F8E9;color:#33691E;border-color:#AED581;}
+.tag-body{background:#F5F5F5;color:#555;border-color:#CCC;}
+.tag-del{background:#FFEBEE;color:#B71C1C;border-color:#EF9A9A;}
+.tag-autonum{background:#FFF3E0;color:#E65100;border-color:#FFCC80;}
+/* 特殊行类型 */
+.pv-salutation,.pv-closing{font-family:'FangSong','仿宋',serif;font-size:15px;text-indent:0;}
+.pv-sender,.pv-date{font-family:'FangSong','仿宋',serif;font-size:15px;text-align:right;text-indent:0;}
+.pv-row.special-line .pv-text{background:#E8F5E9;border-left:3px solid #43A047;padding-left:6px;border-radius:2px;}
+/* 加粗拆分标题 */
+.pv-row.split-title .pv-text{background:#FFF3E0;border-left:3px solid #FF9800;padding-left:6px;border-radius:2px;}
+
+/* 待确认提示条 */
+.confirm-banner{display:none;align-items:center;gap:10px;padding:9px 14px;background:#FFF8E1;border:1px solid #FFD54F;border-radius:3px;margin-bottom:10px;font-size:12.5px;}
+.confirm-banner.on{display:flex;}
+.confirm-banner strong{font-family:'SimHei',sans-serif;color:#E65100;}
+
+/* 进度/统计/日志 */
+.pgwrap{display:none;align-items:center;gap:12px;padding:8px 0;}
+.pgwrap.on{display:flex;}
+.pgbar{flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden;}
+.pgfill{height:100%;background:var(--red);border-radius:2px;width:0;transition:width .3s;}
+.pglabel{font-size:12px;color:var(--muted);white-space:nowrap;}
+
+.stats{display:none;flex-wrap:wrap;gap:14px;padding:8px 0 0;font-size:12px;color:var(--muted);border-top:1px dashed var(--border);margin-top:8px;}
+.stats.on{display:flex;}
+.sn{font-weight:bold;color:var(--red);}
+
+.logbox{display:none;font-size:12px;color:var(--muted);background:#F9F7F4;border:1px solid var(--border);border-radius:3px;padding:8px 13px;line-height:1.9;margin-top:8px;max-height:90px;overflow-y:auto;}
+.logbox.on{display:block;}
+.lok{color:var(--green);}
+.lwarn{color:var(--orange);}
+
+/* 底部操作栏 */
+.actbar{background:var(--panel);border-top:1px solid var(--border);padding:12px 28px;display:flex;align-items:center;justify-content:space-between;gap:16px;position:sticky;bottom:0;z-index:50;box-shadow:0 -2px 8px rgba(0,0,0,.06);}
+.anote{font-size:12px;color:var(--muted);line-height:1.7;}
+.anote strong{color:var(--text);}
+.abtns{display:flex;gap:10px;align-items:center;}
+
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;border-radius:3px;font-size:13px;font-family:'SimHei',sans-serif;letter-spacing:.5px;cursor:pointer;border:1px solid transparent;transition:.15s;white-space:nowrap;}
+.btn:active{transform:translateY(1px);}
+.btn-ghost{background:#fff;color:var(--text);border-color:var(--border);}
+.btn-ghost:hover{background:var(--bg);}
+.btn-main{background:var(--red);color:#fff;border-color:#6B1010;font-size:14px;padding:10px 26px;}
+.btn-main:hover{background:var(--red2);}
+.btn-main:disabled{background:#9E9E9E;border-color:#757575;cursor:not-allowed;transform:none;}
+
+.toast{position:fixed;bottom:68px;left:50%;transform:translateX(-50%) translateY(14px);background:#1A1612;color:#fff;padding:10px 22px;border-radius:4px;font-size:14px;font-family:'SimHei',sans-serif;opacity:0;transition:.25s;pointer-events:none;z-index:999;white-space:nowrap;}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
+
+@media(max-width:900px){.stds{grid-template-columns:1fr 1fr;}.opts{grid-template-columns:1fr 1fr;}}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📄 公文一键排版工具</h1>
+  <div class="hd-sub">党政机关公文格式国家标准 GB/T 9704</div>
+</header>
+
+<div class="wrap">
+
+  <!-- 排版标准说明 -->
+  <div class="card">
+    <div class="ch"><div class="ct">排版标准</div></div>
+    <div class="cb" style="padding:12px 18px;">
+      <div class="stds">
+        <div class="std"><strong>📐 页面</strong>A4 · 上3.7 下3.5<br>左2.8 右2.6（cm）</div>
+        <div class="std"><strong>📌 标题区</strong>主标题：二号小标宋居中<br>副标题：三号楷体加粗居中<br>标题后空一行</div>
+        <div class="std"><strong>📝 正文</strong>三号仿宋_GB2312<br>首行缩进2字 · 固定行距28磅</div>
+        <div class="std"><strong>📋 层级标题</strong>一（黑体不加粗）二（楷体加粗）<br>三（仿宋加粗）四（仿宋）<br>图说明：仿宋居中</div>
+        <div class="std"><strong>📊 表格</strong>三号仿宋_GB2312 · 居中布局<br>表头居中加粗 · 正文左对齐<br>支持全框线/三线表 · 表题居中加粗</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 上传与设置 -->
+  <div class="card">
+    <div class="ch"><div class="ct">第一步：上传文件</div></div>
+    <div class="cb">
+
+      <div class="upzone" id="upzone"
+        ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+        <input type="file" id="fileInput" accept=".docx,.txt" onchange="onFileSelect(event)">
+        <div class="up-icon">📂</div>
+        <div class="up-main">拖拽文件到此，或点击选择</div>
+        <div class="up-sub">支持 .docx（Word）和 .txt 纯文本</div>
+        <div class="up-note">⚠️ .doc 旧格式请先在 Word/WPS 另存为 .docx 再上传</div>
+        <div class="up-note">文件仅在本地浏览器中处理，不上传任何服务器</div>
+      </div>
+
+      <div class="tbl-note" id="tblNote" style="display:none;">
+        <strong>⚠️ 表格说明（未启用表格排版）：</strong>本次排版将跳过表格，以占位符代替。如需排版表格，请勾选上方"保留并排版表格"。
+      </div>
+
+      <div class="tbl-opts-section">
+        <div class="tbl-opts-title">表格排版选项</div>
+        <div class="tbl-opts-row">
+          <label class="tbl-opt-item">
+            <input type="checkbox" id="o_table" onchange="onTableOptChange()">保留并排版表格
+          </label>
+          <label class="tbl-opt-item" id="tbl-line-wrap" style="opacity:.45;pointer-events:none;">
+            表线样式：
+            <select class="tbl-line-sel" id="o_table_line">
+              <option value="full">全框线</option>
+              <option value="three">三线表</option>
+            </select>
+          </label>
+          <label class="tbl-opt-item" id="tbl-clean-wrap" style="opacity:.45;pointer-events:none;">
+            <input type="checkbox" id="o_table_clean" checked>表格内文本同步清洗
+          </label>
+        </div>
+      </div>
+
+      <div class="finfo" id="finfo">
+        <span style="font-size:22px;">📄</span>
+        <div><div class="fi-name" id="fiName"></div><div class="fi-meta" id="fiMeta"></div></div>
+        <button class="fi-rm" onclick="removeFile()">✕ 移除</button>
+      </div>
+
+      <div class="title-row">
+        <span class="tlabel">公文主标题</span>
+        <input class="tinput" id="docTitle" type="text" placeholder="留空则自动识别，识别后显示在下方预览中可确认或修改">
+        <span class="tnote">二号小标宋居中</span>
+      </div>
+      <div class="title-row" style="margin-top:8px;">
+        <span class="tlabel">副标题（选填）</span>
+        <input class="tinput" id="docSubtitle" type="text" placeholder="如：——关于XXX的说明　（2024年XX月）　数智化事业部　留空不添加">
+        <span class="tnote">三号楷体加粗居中</span>
+      </div>
+
+      <div class="opts">
+        <label class="opt"><input type="checkbox" id="o_punct" checked>半角标点→全角</label>
+        <label class="opt"><input type="checkbox" id="o_space" checked>清除多余空格/空行</label>
+        <label class="opt"><input type="checkbox" id="o_indent" checked>清除行首手动缩进</label>
+        <label class="opt"><input type="checkbox" id="o_num" checked>序号纠偏（1、→1.）</label>
+        <label class="opt"><input type="checkbox" id="o_split" checked>拆分段内换行为独立段</label>
+        <label class="opt"><input type="checkbox" id="o_color" checked>忽略颜色/高亮/下划线</label>
+        <label class="opt"><input type="checkbox" id="o_markdown" checked>清洗Markdown格式标记</label>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 预览与确认 -->
+  <div class="card">
+    <div class="ch">
+      <div class="ct">第二步：预览并确认段落类型</div>
+      <button class="btn btn-ghost" onclick="runPreview()" style="padding:5px 13px;font-size:12px;">🔄 重新解析</button>
+    </div>
+    <div class="cb" style="display:flex;flex-direction:column;gap:10px;">
+
+      <div class="pgwrap" id="pgwrap">
+        <div class="pgbar"><div class="pgfill" id="pgfill"></div></div>
+        <div class="pglabel" id="pglabel">处理中…</div>
+      </div>
+
+      <!-- 待确认提示横幅 -->
+      <div class="confirm-banner" id="confirmBanner">
+        <span>⚠️</span>
+        <strong id="confirmCount">0 处</strong>
+        <span>段落已自动补充编号（橙色标注），绿色标注为识别的称呼/结语/落款行。如需调整，点击标签按钮或"已自动编号 ↩"撤销。</span>
+        <span style="margin-left:auto;font-size:11.5px;color:var(--muted);">
+          橙色=自动补编号 | 绿色=识别为称呼/结语/落款（已特殊处理）
+        </span>
+      </div>
+
+      <div class="pvwrap" id="pvwrap">
+        <div class="pv-empty" id="pvempty">
+          <span style="font-size:28px;opacity:.25;">📋</span>
+          <span>上传文件后点击「预览排版效果」</span>
+        </div>
+        <div class="pvbody" id="pvbody"></div>
+      </div>
+
+      <div class="logbox" id="logbox"></div>
+
+      <div class="stats" id="stats">
+        <span>总字数：<span class="sn" id="sChar">0</span></span>
+        <span>正文段：<span class="sn" id="sPara">0</span></span>
+        <span>一级标题：<span class="sn" id="sH1">0</span></span>
+        <span>二级标题：<span class="sn" id="sH2">0</span></span>
+        <span>三级标题：<span class="sn" id="sH3">0</span></span>
+        <span>图说明：<span class="sn" id="sFig">0</span></span>
+        <span>序号纠偏：<span class="sn" id="sNum">0</span> 处</span>
+        <span>格式清洗：<span class="sn" id="sFix">0</span> 处</span>
+        <span>自动补编号：<span class="sn" id="sAutoNum">0</span> 处</span>
+        <span>表格：<span class="sn" id="sTbl">0</span> 个</span>
+        <span>表题：<span class="sn" id="sTblCaption">0</span> 处</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="actbar">
+  <div class="anote">
+    <strong>第三步：下载</strong> — 生成页边距、字体、行距均符合 GB/T 9704 的 .docx 文件。<br>
+    <span style="color:#B0A898;">提示：需本机安装方正系列字体，否则 Word 将回退至默认字体。</span>
+  </div>
+  <div class="abtns">
+    <button class="btn btn-ghost" onclick="runPreview()">👁 预览排版</button>
+    <button class="btn btn-main" id="exportBtn" onclick="exportDocx()" disabled>⬇ 下载公文 Word（.docx）</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════
+   状态
+═══════════════════════════════════════════════════ */
+let currentFile   = null;
+let parsedParas   = [];
+let fixCount      = 0;
+let numFixCount   = 0;
+let tableCount    = 0;
+let detectedTitle = '';
+let paraIdCounter = 0;
+
+// 表格选项联动
+function onTableOptChange(){
+  const on=document.getElementById('o_table').checked;
+  document.getElementById('tbl-line-wrap').style.opacity=on?'1':'0.45';
+  document.getElementById('tbl-line-wrap').style.pointerEvents=on?'auto':'none';
+  document.getElementById('tbl-clean-wrap').style.opacity=on?'1':'0.45';
+  document.getElementById('tbl-clean-wrap').style.pointerEvents=on?'auto':'none';
+  document.getElementById('tblNote').style.display=on?'none':'block';
+}
+
+/* ═══════════════════════════════════════════════════
+   文件上传
+═══════════════════════════════════════════════════ */
+function onDragOver(e){e.preventDefault();document.getElementById('upzone').classList.add('over');}
+function onDragLeave(){document.getElementById('upzone').classList.remove('over');}
+function onDrop(e){e.preventDefault();onDragLeave();const f=e.dataTransfer.files[0];if(f)handleFile(f);}
+function onFileSelect(e){const f=e.target.files[0];if(f)handleFile(f);}
+
+function handleFile(f){
+  const ext=f.name.split('.').pop().toLowerCase();
+  if(!['docx','txt'].includes(ext)){showToast('仅支持 .docx 和 .txt 格式');return;}
+  currentFile=f;
+  document.getElementById('fiName').textContent=f.name;
+  document.getElementById('fiMeta').textContent=(f.size/1024).toFixed(1)+' KB · '+ext.toUpperCase();
+  document.getElementById('finfo').classList.add('on');
+  runPreview();
+}
+
+function removeFile(){
+  currentFile=null;parsedParas=[];detectedTitle='';
+  document.getElementById('finfo').classList.remove('on');
+  document.getElementById('fileInput').value='';
+  document.getElementById('pvbody').innerHTML='';
+  document.getElementById('pvbody').classList.remove('on');
+  document.getElementById('pvempty').style.display='flex';
+  document.getElementById('stats').classList.remove('on');
+  document.getElementById('logbox').classList.remove('on');
+  document.getElementById('confirmBanner').classList.remove('on');
+  document.getElementById('exportBtn').disabled=true;
+}
+
+/* ═══════════════════════════════════════════════════
+   文件解析
+═══════════════════════════════════════════════════ */
+async function extractDocx(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=async e=>{
+      try{
+        const result=await mammoth.convertToHtml({arrayBuffer:e.target.result});
+        const div=document.createElement('div');
+        div.innerHTML=result.value;
+        function getTextWithBreaks(el){
+          let out='';
+          el.childNodes.forEach(n=>{
+            if(n.nodeType===3) out+=n.nodeValue;
+            else if(n.nodeType===1){
+              if(n.tagName.toLowerCase()==='br') out+='\n';
+              else out+=getTextWithBreaks(n);
+            }
+          });
+          return out;
+        }
+        const items=[];
+        let wordStyleTitle='';
+        div.childNodes.forEach(node=>{
+          if(node.nodeType!==1) return;
+          const tag=node.tagName.toLowerCase();
+          if(tag==='table'){
+            // 完整保留表格行列结构
+            const rows=[];
+            node.querySelectorAll('tr').forEach(tr=>{
+              const cells=[];
+              tr.querySelectorAll('td,th').forEach(cell=>{
+                cells.push({
+                  text: getTextWithBreaks(cell).trim(),
+                  isHeader: cell.tagName.toLowerCase()==='th'
+                });
+              });
+              if(cells.length) rows.push(cells);
+            });
+            const cellTexts=rows.flatMap(r=>r.map(c=>c.text)).filter(Boolean);
+            items.push({
+              text:'[表格]'+(cellTexts.length?'（'+cellTexts.slice(0,3).join('；')+'…）':''),
+              isTable:true,
+              tableData: rows  // 完整结构化数据
+            });
+          } else if(['p','h1','h2','h3','h4','h5','h6','li'].includes(tag)){
+            const t=getTextWithBreaks(node).trim();
+            if(t){
+              if(tag==='h1'&&!wordStyleTitle) wordStyleTitle=t;
+              items.push({text:t,isTable:false,fromH1:(tag==='h1')});
+            }
+          }
+        });
+        resolve({items,wordStyleTitle});
+      }catch(err){reject(err);}
+    };
+    reader.onerror=reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+async function extractTxt(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=e=>resolve({
+      items:e.target.result.split('\n').map(l=>l.trim()).filter(Boolean).map(t=>({text:t,isTable:false})),
+      wordStyleTitle:''
+    });
+    reader.onerror=reject;
+    reader.readAsText(file,'UTF-8');
+  });
+}
+
+/* ═══════════════════════════════════════════════════
+   特殊行识别（优先于所有分类）
+═══════════════════════════════════════════════════ */
+function classifySpecial(t){
+  if(/^[尊敬亲爱各位].{0,15}[：:]$/.test(t)) return 'salutation';
+  if(/^(特此(请示|汇报|报告|说明|致函)[。！]?|此致[。！]?|请批[示准][。！]?|谨此[。！]?)$/.test(t)) return 'closing';
+  if(/^[\u4e00-\u9fff·（）()]{2,30}(公司|单位|部门|部|中心|局|院|所|委|集团|办公室|处|队|站)$/.test(t)) return 'sender';
+  if(/^\d{4}年\d{1,2}月\d{1,2}日$/.test(t)) return 'date';
+  return null;
+}
+
+/* ═══════════════════════════════════════════════════
+   清洗管道
+═══════════════════════════════════════════════════ */
+
+// Markdown清洗（含加粗标题拆分）
+function cleanMarkdown(s){
+  // **标题词：**正文 → 拆分为两条
+  const boldSplit=s.match(/^\*\*(.{2,25}[：:])\*\*(.+)$/);
+  if(boldSplit){
+    return{
+      text:boldSplit[2].trim(),
+      boldTitle:boldSplit[1].replace(/[：:]$/,'').trim(),
+      wasSplit:true
+    };
+  }
+  s=s.replace(/^#{1,6}\s+/,'');
+  s=s.replace(/\*\*(.+?)\*\*/g,'$1');
+  s=s.replace(/__(.+?)__/g,'$1');
+  s=s.replace(/\*(.+?)\*/g,'$1');
+  s=s.replace(/`(.+?)`/g,'$1');
+  s=s.replace(/^>\s*/,'');
+  s=s.replace(/^[-*_]{3,}$/,'');
+  return{text:s.trim(),wasSplit:false};
+}
+
+// 序号统一 + 纠偏（在classify前执行）
+function normalizeAndFix(s){
+  const c='①②③④⑤⑥⑦⑧⑨⑩';
+  s=s.replace(/^([①②③④⑤⑥⑦⑧⑨⑩])\s*/,(m,ch)=>(c.indexOf(ch)+1)+'.');
+  s=s.replace(/^([一二三四五六七八九十]+）)/,'（$1');
+  s=s.replace(/^(\d+)\)\s*/,'（$1）');
+  s=s.replace(/^(\d+)[、]/,'$1.');
+  s=s.replace(/^(（\d+）)[、．]/,'$1');
+  s=s.replace(/^(（[一二三四五六七八九十百]+）)[、]/,'$1');
+  return s;
+}
+
+// 破折号 + 引号 + 标点
+function cleanPunct(s,opts){
+  let fixes=0;
+  {const b=s;s=s.replace(/[-－—]{2,}/g,'——');if(s!==b)fixes++;}
+  if(opts.indent){const b=s;s=s.replace(/^[\s\t\u3000　]+/,'');if(s!==b)fixes++;}
+  if(opts.punct){
+    const PM={',':'，',';':'；',':':'：','!':'！','?':'？','(':'（',')':'）'};
+    s=s.replace(/[,;:!?()\[\]]/g,(ch,i,str)=>{
+      const p=str[i-1]||'',q=str[i+1]||'';
+      if(/[a-zA-Z0-9]/.test(p)&&/[a-zA-Z0-9]/.test(q)) return ch;
+      if(ch===':'&&/\d/.test(p)&&/\d/.test(q)) return ch;
+      const m=PM[ch];if(m){fixes++;return m;}return ch;
+    });
+    {
+      let dqCount=0,sqCount=0,out='';
+      for(let i=0;i<s.length;i++){
+        const ch=s[i];
+        if(ch==='\x22'||ch==='\uff02'){
+          dqCount++;out+=(dqCount%2===1)?'\u201c':'\u201d';fixes++;
+        } else if(ch==='\x27'||ch==='\uff07'){
+          const prev=out[out.length-1]||'',next=s[i+1]||'';
+          if(/[a-zA-Z]/.test(prev)&&/[a-zA-Z]/.test(next)){out+='\u2019';}
+          else{sqCount++;out+=(sqCount%2===1)?'\u2018':'\u2019';}
+          fixes++;
+        } else{out+=ch;}
+      }
+      s=out;
+    }
+  }
+  if(opts.space){const b=s;s=s.replace(/[ \t]{2,}/g,' ').trimEnd();if(s!==b)fixes++;}
+  return{text:s,fixes};
+}
+
+/* ═══════════════════════════════════════════════════
+   分类规则
+═══════════════════════════════════════════════════ */
+const LEVELS=[
+  {type:'h1',         re:/^[一二三四五六七八九十百]+[、．.]/},
+  {type:'h2',         re:/^（[一二三四五六七八九十]+）(?![阶类步条节章])/},
+  {type:'h2label',    re:/^（(一|二|三|四|五|六|七|八|九|十)(期|阶段|批)）/},
+  {type:'h3',         re:/^\d+[\.．]\s*/},
+  {type:'h4',         re:/^（\d+）/},
+  {type:'figcaption', re:/^图\s*\d+[.．：:、]/},
+];
+function classify(t){
+  for(const l of LEVELS) if(l.re.test(t)) return l.type;
+  return 'body';
+}
+
+function isSuspectHeading(t){
+  if(classify(t)!=='body') return false;
+  if(classifySpecial(t)) return false;
+  if(t.length>25) return false;
+  if(/[。；？！…]$/.test(t)) return false;
+  if(/^（/.test(t)) return false;
+  if(/^图\s*\d+/.test(t)) return false;
+  if(t.length>=14&&/[，、]/.test(t)) return false;
+  if(/\d+[年月日次个万亿%％家座户份项人名]/.test(t)) return false;
+  if(/^[尊敬亲爱各位]/.test(t)) return false;
+  if(/^[a-zA-Z0-9\s\/\-\.]+$/.test(t)) return false;
+  if(/[：:].+/.test(t)) return false;
+  if(/通过|实现|形成|达成|完成/.test(t)&&t.length>8) return false;
+  if(/^(通过|实现|完成|确保|保证|提升|加强|开展|推进|促进)/.test(t)) return false;
+  if(/^[\u4e00-\u9fff·（）()]{2,30}(公司|单位|部门|部|中心|局|院|所|委|集团|办公室|处|队|站)$/.test(t)) return false;
+  if(/^\d{4}年\d{1,2}月\d{1,2}日$/.test(t)) return false;
+  return true;
+}
+
+/* ═══════════════════════════════════════════════════
+   主标题识别
+═══════════════════════════════════════════════════ */
+function detectTitleArea(wordStyleH1,fileName,plainLines){
+  if(wordStyleH1&&wordStyleH1.trim()) return{title:wordStyleH1.trim(),source:'word-style'};
+  const fn=fileName.replace(/\.[^.]+$/,'').replace(/\d{1,4}$/,'').replace(/[_\-（(]\d+[）)]*$/,'').trim();
+  if(fn&&fn.length>=4&&fn.length<=50) return{title:fn,source:'filename'};
+  const first=(plainLines[0]||'').trim();
+  if(first.length>=6&&first.length<=50&&
+     !/[。；]$/.test(first)&&
+     !/^[尊敬亲爱各位]/.test(first)&&
+     !/：$/.test(first)&&
+     classify(first)==='body'&&
+     !classifySpecial(first)){
+    return{title:first,source:'heuristic'};
+  }
+  return{title:'',source:'none'};
+}
+
+/* ═══════════════════════════════════════════════════
+   自动编号器
+═══════════════════════════════════════════════════ */
+const H1_CHARS=['一','二','三','四','五','六','七','八','九','十'];
+const H1_MAP={'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10};
+function toH1Str(n){
+  if(n<=10) return H1_CHARS[n-1];
+  if(n<=19) return '十'+(n>10?H1_CHARS[n-11]:'');
+  return H1_CHARS[Math.floor(n/10)-1]+'十'+(n%10?H1_CHARS[n%10-1]:'');
+}
+function parseH1Num(text){
+  const m=text.match(/^([一二三四五六七八九十百]+)[、．.]/);
+  if(!m) return 0;
+  const s=m[1];
+  if(H1_MAP[s]) return H1_MAP[s];
+  if(s.startsWith('十')) return 10+(H1_MAP[s[1]]||0);
+  return 0;
+}
+function makeNumberer(){
+  let h1=0,h2=0,h3=0,h4=0;
+  return{
+    syncH1(n){h1=n;h2=0;h3=0;h4=0;},
+    syncH2(n){h2=n;h3=0;h4=0;},
+    syncH3(n){h3=n;h4=0;},
+    next(type){
+      if(type==='h1'){h1++;h2=0;h3=0;h4=0;return toH1Str(h1)+'、';}
+      if(type==='h2'){h2++;h3=0;h4=0;return '（'+H1_CHARS[h2-1]+'）';}
+      if(type==='h3'){h3++;h4=0;return h3+'.';}
+      if(type==='h4'){h4++;return '（'+h4+'）';}
+      return '';
+    }
+  };
+}
+
+/* ═══════════════════════════════════════════════════
+   预览主流程
+═══════════════════════════════════════════════════ */
+async function runPreview(){
+  if(!currentFile){showToast('请先上传文件');return;}
+  pg(10,'读取文件…');clearLog();
+  parsedParas=[];fixCount=0;numFixCount=0;tableCount=0;detectedTitle='';paraIdCounter=0;
+
+  try{
+    const ext=currentFile.name.split('.').pop().toLowerCase();
+    pg(25,'解析文档…');
+    const extracted=ext==='txt'?await extractTxt(currentFile):await extractDocx(currentFile);
+    const rawItems=extracted.items;
+    const wordStyleTitle=extracted.wordStyleTitle||'';
+    const fileNameTitle=currentFile.name;
+    addLog('ok',`文件解析完成，共 ${rawItems.length} 段`);
+
+    const opts={
+      punct:    document.getElementById('o_punct').checked,
+      space:    document.getElementById('o_space').checked,
+      indent:   document.getElementById('o_indent').checked,
+      num:      document.getElementById('o_num').checked,
+      split:    document.getElementById('o_split').checked,
+      markdown: document.getElementById('o_markdown').checked,
+    };
+
+    pg(40,'格式清洗…');
+
+    // 展开段内换行（智能识别并列结构）
+    const PARALLEL_RE=/^[一二三四五六七八九十]+是|^首先|^其次|^再次|^最后|^另外/;
+    let expanded=[];
+    for(const item of rawItems){
+      if(item.isTable){expanded.push(item);continue;}
+      if(opts.split&&item.text.includes('\n')){
+        const parts=item.text.split('\n').map(s=>s.trim()).filter(Boolean);
+        const isParallel=parts.length>1&&parts.slice(1).every(p=>PARALLEL_RE.test(p));
+        if(isParallel){
+          expanded.push({text:parts.join(' '),isTable:false});
+        } else {
+          for(const sub of parts) expanded.push({text:sub,isTable:false});
+        }
+      } else {
+        expanded.push(item);
+      }
+    }
+    expanded=expanded.filter(i=>i.text.trim());
+
+    pg(55,'层级识别…');
+
+    // 清洗 + 分类（含加粗标题拆分）
+    const cleanedItems=[];
+    for(const item of expanded){
+      if(item.isTable){tableCount++;cleanedItems.push({text:item.text,isTable:true,type:'table',tableData:item.tableData||null});continue;}
+
+      let s=item.text;
+
+      // 0. 特殊行优先
+      const sp=classifySpecial(s);
+      if(sp){cleanedItems.push({text:s,isTable:false,type:sp,suspect:false});continue;}
+
+      // 1. Markdown清洗（含加粗标题拆分）
+      if(opts.markdown){
+        const md=cleanMarkdown(s);
+        if(!md.text){fixCount++;continue;}
+        if(md.wasSplit){
+          // 拆分出的标题行：标记为 suspect+isSplitTitle，不自动补编号，等用户手动选
+          cleanedItems.push({text:md.boldTitle,isTable:false,type:'body',suspect:true,isSplitTitle:true});
+          s=md.text;
+        } else {
+          s=md.text;
+        }
+      }
+
+      if(!s) continue;
+
+      // 2. 序号规范化 + 纠偏
+      s=normalizeAndFix(s);
+
+      // 3. 标点清洗
+      const{text:sCleaned,fixes}=cleanPunct(s,opts);
+      s=sCleaned;
+      fixCount+=fixes;
+
+      if(!s) continue;
+
+      const type=classify(s);
+      const suspect=type==='body'?isSuspectHeading(s):false;
+      cleanedItems.push({text:s,isTable:false,type,suspect,isSplitTitle:false});
+    }
+
+    // 主标题识别
+    const manualTitle=document.getElementById('docTitle').value.trim();
+    const plainTexts=cleanedItems.filter(i=>!i.isTable).map(i=>i.text);
+    let titleInfo={title:'',source:'none'};
+
+    if(!manualTitle){
+      titleInfo=detectTitleArea(wordStyleTitle,fileNameTitle,plainTexts);
+      detectedTitle=titleInfo.title;
+      if(titleInfo.source==='none'){
+        addLog('warn','未检测到主标题，请在上方输入框手动填写');
+      } else {
+        addLog('ok',`主标题（${titleInfo.source}）：${titleInfo.title.slice(0,25)}`);
+      }
+    }
+
+    // 自动编号
+    const numberer=makeNumberer();
+    const docTitleText=titleInfo.title||'';
+    const autoNumbered=[];
+
+    for(const item of cleanedItems){
+      const id='p'+(++paraIdCounter);
+
+      if(item.isTable){
+        // 查找前一个非空段落，判断是否为表题
+        const prevPara=cleanedItems.filter(x=>!x.isTable).slice(-1)[0];
+        let isCaption=false;
+        if(prevPara&&/^表\s*[\d一二三四五六七八九十]+/.test(prevPara.text)){
+          // 将前一段标记为表题（已在 cleanedItems 里，需回溯修改）
+          const prevInParsed=parsedParas.slice(-1)[0];
+          if(prevInParsed&&prevInParsed.text===prevPara.text) prevInParsed.type='figcaption-table';
+        }
+        // 表格文本清洗
+        let tableData=item.tableData?JSON.parse(JSON.stringify(item.tableData)):null;
+        const doClean=document.getElementById('o_table').checked&&document.getElementById('o_table_clean').checked;
+        if(tableData&&doClean){
+          tableData=tableData.map(row=>row.map(cell=>{
+            let s=normalizeAndFix(cell.text);
+            const{text:sc}=cleanPunct(s,opts);
+            return{...cell,text:sc};
+          }));
+        }
+        parsedParas.push({id,text:item.text,type:'table',suspect:false,autoNum:false,tableData});
+        continue;
+      }
+
+      // 特殊行直接入列
+      if(['salutation','closing','sender','date'].includes(item.type)){
+        parsedParas.push({id,text:item.text,type:item.type,suspect:false,autoNum:false});
+        continue;
+      }
+
+      // 文档主标题
+      if(docTitleText&&item.text===docTitleText&&item.type!=='h1'){
+        parsedParas.push({id,text:item.text,type:'doc-title',suspect:false,autoNum:false});
+        continue;
+      }
+      if(item.type==='doc-title'||item.type==='subtitle'){
+        parsedParas.push({id,text:item.text,type:item.type,suspect:false,autoNum:false});
+        continue;
+      }
+
+      // 同步编号器
+      if(item.type==='h1'){const n=parseH1Num(item.text);if(n>0)numberer.syncH1(n);}
+      else if(item.type==='h2'){const m=item.text.match(/^（([一二三四五六七八九十]+)）/);if(m)numberer.syncH2(H1_MAP[m[1]]||0);}
+      else if(item.type==='h3'){const m=item.text.match(/^(\d+)[\.．]/);if(m)numberer.syncH3(parseInt(m[1]));}
+
+      if(item.suspect&&!item.isSplitTitle){
+        // 疑似标题自动补h1（保守策略）
+        const prefix=numberer.next('h1');
+        const newText=prefix+item.text;
+        parsedParas.push({id,text:newText,type:'h1',suspect:false,autoNum:true,origText:item.text,prefix});
+        autoNumbered.push(newText.slice(0,20));
+      } else if(item.isSplitTitle){
+        // 加粗拆分标题：保留suspect，不自动补编号，让用户手动选层级
+        parsedParas.push({id,text:item.text,type:'body',suspect:true,autoNum:false,isSplitTitle:true});
+      } else {
+        parsedParas.push({id,text:item.text,type:item.type,suspect:false,autoNum:false});
+      }
+    }
+
+    if(autoNumbered.length>0) addLog('ok',`自动补编号 ${autoNumbered.length} 处`);
+    addLog('ok',`序号纠偏 ${numFixCount} 处，格式清洗 ${fixCount} 处`);
+
+    const specialCount=['salutation','closing','sender','date'].reduce((n,t)=>n+parsedParas.filter(p=>p.type===t).length,0);
+    if(specialCount>0) addLog('ok',`识别特殊行 ${specialCount} 处（称呼/结语/落款）`);
+    const doTableOpt=document.getElementById('o_table').checked;
+    if(tableCount>0){
+      if(doTableOpt){
+        const tblCaptionCount=parsedParas.filter(p=>p.type==='figcaption-table').length;
+        addLog('ok',`${tableCount} 个表格已结构化排版`+(tblCaptionCount>0?`，识别表题 ${tblCaptionCount} 处`:''));
+      } else {
+        addLog('warn',`${tableCount} 个表格已替换为占位符（可勾选"保留并排版表格"）`);
+      }
+    }
+
+    pg(85,'渲染预览…');
+    renderPreview(manualTitle);
+
+    const cnt=t=>parsedParas.filter(p=>p.type===t).length;
+    document.getElementById('sChar').textContent=parsedParas.filter(p=>!['table','doc-title','subtitle'].includes(p.type)).reduce((s,p)=>s+p.text.length,0);
+    document.getElementById('sPara').textContent=cnt('body');
+    document.getElementById('sH1').textContent=cnt('h1');
+    document.getElementById('sH2').textContent=cnt('h2')+cnt('h2label');
+    document.getElementById('sH3').textContent=cnt('h3');
+    document.getElementById('sFig').textContent=cnt('figcaption')+cnt('figcaption-table');
+    document.getElementById('sNum').textContent=numFixCount;
+    document.getElementById('sFix').textContent=fixCount;
+    document.getElementById('sTbl').textContent=tableCount;
+    document.getElementById('sTblCaption').textContent=cnt('figcaption-table');
+    document.getElementById('sAutoNum').textContent=autoNumbered.length;
+    document.getElementById('stats').classList.add('on');
+
+    pg(100,'完成');
+    setTimeout(()=>document.getElementById('pgwrap').classList.remove('on'),500);
+    document.getElementById('exportBtn').disabled=false;
+    showToast(`解析完成，共 ${parsedParas.length} 段`);
+
+  }catch(err){
+    pg(0,'');document.getElementById('pgwrap').classList.remove('on');
+    addLog('warn','解析失败：'+err.message);
+    showToast('解析失败：'+err.message);
+    console.error(err);
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   渲染预览（支持 contenteditable 直接编辑）
+═══════════════════════════════════════════════════ */
+function renderPreview(manualTitle){
+  const finalTitle=manualTitle||detectedTitle||'';
+  const subtitle=document.getElementById('docSubtitle').value.trim();
+
+  let html='';
+
+  // 主标题区
+  if(finalTitle){
+    html+=`<div class="pv-row"><p class="pv-text pv-doc-title">${esc(finalTitle)}</p></div>`;
+  } else {
+    html+=`<div class="pv-row pv-title-missing"><p class="pv-text" style="color:#E65100;font-size:13px;">⚠ 未识别到主标题，请在上方输入框填写</p></div>`;
+  }
+  if(subtitle){
+    html+=`<div class="pv-row"><p class="pv-text pv-subtitle">${esc(subtitle)}</p></div>`;
+  }
+  if(finalTitle||subtitle){
+    html+=`<div class="pv-row"><p class="pv-text pv-blank">&nbsp;</p></div>`;
+  }
+
+  let autoNumCount=0;
+  let splitTitleCount=0;
+
+  const SPECIAL_TYPES=['salutation','closing','sender','date'];
+
+  for(const p of parsedParas){
+    const isSpecial=SPECIAL_TYPES.includes(p.type);
+    const isSplitT=p.isSplitTitle&&p.suspect;
+    const isTable=p.type==='table';
+    const doTableRender=document.getElementById('o_table').checked;
+    const lineStyle=document.getElementById('o_table_line').value;
+
+    let rowClass='pv-row';
+    if(isSpecial) rowClass+=' special-line';
+    if(isSplitT)  rowClass+=' split-title';
+    if(isTable)   rowClass+=' table-row';
+
+    // 行内标注徽标
+    let badges='';
+    if(p.autoNum){
+      autoNumCount++;
+      badges+=`<span class="pv-tag tag-autonum" title="自动补编，点击撤销" onclick="undoAutoNum('${p.id}')">自动编号↩</span>`;
+    }
+    if(isSpecial){
+      const labels={'salutation':'称呼','closing':'结语','sender':'落款','date':'日期'};
+      badges+=`<span class="pv-tag" style="background:#E8F5E9;color:#2E7D32;border-color:#A5D6A7;">${labels[p.type]}</span>`;
+    }
+    if(isSplitT){
+      splitTitleCount++;
+      badges+=`<span class="pv-tag" style="background:#FFF3E0;color:#E65100;border-color:#FFCC80;">加粗标题↑请选层级</span>`;
+    }
+
+    // 操作按钮（表格行不显示类型切换）
+    let actions=`<span class="pv-actions">`;
+    if(!isTable){
+      if(p.type!=='doc-title') actions+=`<span class="pv-tag tag-title" onclick="setType('${p.id}','doc-title')">主标题</span>`;
+      if(p.type!=='h1')        actions+=`<span class="pv-tag tag-h1" onclick="setType('${p.id}','h1')">一级</span>`;
+      if(p.type!=='h2')        actions+=`<span class="pv-tag tag-h2" onclick="setType('${p.id}','h2')">二级</span>`;
+      if(p.type!=='h3')        actions+=`<span class="pv-tag tag-h3" onclick="setType('${p.id}','h3')">三级</span>`;
+      if(p.type!=='body')      actions+=`<span class="pv-tag tag-body" onclick="setType('${p.id}','body')">正文</span>`;
+      actions+=`<span class="pv-tag tag-del" onclick="setType('${p.id}','delete')">删除</span>`;
+    } else {
+      actions+=`<span class="pv-tag tag-del" onclick="setType('${p.id}','delete')" style="margin-left:4px;">删除表格</span>`;
+    }
+    actions+=badges;
+    actions+=`</span>`;
+
+    // 文本样式类
+    let textClass='pv-text ';
+    const pvStyleMap={
+      'table':'pv-table','doc-title':'pv-doc-title','subtitle':'pv-subtitle',
+      'h1':'pv-h1','h2':'pv-h2','h2label':'pv-subtitle',
+      'h3':'pv-h3','h4':'pv-h4','figcaption':'pv-figcaption',
+      'figcaption-table':'pv-table-caption',
+      'salutation':'pv-salutation','closing':'pv-closing',
+      'sender':'pv-sender','date':'pv-date',
+      'body':'pv-body'
+    };
+    textClass+=(pvStyleMap[p.type]||'pv-body');
+
+    // ── 表格渲染 ──
+    if(isTable){
+      html+=`<div class="${rowClass}" id="row-${p.id}">`;
+      if(doTableRender&&p.tableData&&p.tableData.length){
+        // 渲染真实 HTML 表格
+        const rows=p.tableData;
+        const cols=Math.max(...rows.map(r=>r.length));
+        let tHtml=`<div class="pv-table-block">`;
+        tHtml+=`<table class="pv-table-real style-${lineStyle}">`;
+        rows.forEach((row,ri)=>{
+          const tag=ri===0?'th':'td';
+          const section=ri===0?'<thead><tr>':'<tbody><tr>';
+          const sectionClose=ri===0?'</tr></thead>':'</tr></tbody>';
+          if(ri===1) tHtml+='<tbody>';
+          tHtml+=`<tr>`;
+          row.forEach(cell=>{
+            tHtml+=`<${tag} style="text-align:${ri===0?'center':'left'}">${esc(cell.text||'')}</${tag}>`;
+          });
+          tHtml+=`</tr>`;
+          if(ri===0) tHtml='<table class="pv-table-real style-'+lineStyle+'"><thead><tr>'+
+            row.map(cell=>`<th style="text-align:center">${esc(cell.text||'')}</th>`).join('')+
+            '</tr></thead>';
+          if(ri===rows.length-1&&ri>0) tHtml+=`</tbody>`;
+        });
+        // 重新生成避免上面逻辑混乱
+        let tRows='';
+        rows.forEach((row,ri)=>{
+          const isHead=ri===0;
+          tRows+=isHead?'<thead><tr>':'<tr>';
+          row.forEach(cell=>{
+            tRows+=isHead
+              ?`<th style="text-align:center">${esc(cell.text||'')}</th>`
+              :`<td style="text-align:left">${esc(cell.text||'')}</td>`;
+          });
+          tRows+=isHead?'</tr></thead>':'</tr>';
+        });
+        // 包裹 tbody
+        const firstNonHead=tRows.indexOf('</thead>')+8;
+        const bodyPart=tRows.slice(firstNonHead);
+        const headPart=tRows.slice(0,firstNonHead);
+        const finalTable=`<table class="pv-table-real style-${lineStyle}">${headPart}<tbody>${bodyPart}</tbody></table>`;
+        tHtml=`<div class="pv-table-block">${finalTable}<div class="pv-table-info">${rows.length}行×${cols}列 · ${lineStyle==='three'?'三线表':'全框线'}</div></div>`;
+        html+=tHtml;
+      } else {
+        // 未启用表格排版或无数据，显示占位符
+        html+=`<p class="pv-text pv-table">${esc(p.text)}</p>`;
+      }
+      html+=actions;
+      html+=`</div>`;
+      continue;
+    }
+
+    // contenteditable 直接编辑（非表格段落）
+    const editable='contenteditable="true" spellcheck="false"';
+    html+=`<div class="${rowClass}" id="row-${p.id}">`;
+    html+=`<p class="${textClass}" ${editable} onblur="onParaEdit('${p.id}',this)">${esc(p.text)}</p>`;
+    html+=actions;
+    html+=`</div>`;
+  }
+
+  document.getElementById('pvbody').innerHTML=html;
+  document.getElementById('pvbody').classList.add('on');
+  document.getElementById('pvempty').style.display='none';
+
+  const total=autoNumCount+splitTitleCount;
+  const banner=document.getElementById('confirmBanner');
+  if(total>0){
+    banner.classList.add('on');
+    document.getElementById('confirmCount').textContent=(autoNumCount>0?autoNumCount+'处自动编号':'')+
+      (splitTitleCount>0?(autoNumCount>0?' + ':'')+splitTitleCount+'处加粗标题待确认':'');
+  } else {
+    banner.classList.remove('on');
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   交互
+═══════════════════════════════════════════════════ */
+function onParaEdit(id,el){
+  const p=parsedParas.find(x=>x.id===id);
+  if(!p) return;
+  const newText=el.innerText.trim();
+  if(newText===p.text) return;
+  p.text=newText;
+  p.autoNum=false; // 手动编辑后撤销自动编号标记
+}
+
+function setType(id,newType){
+  const p=parsedParas.find(x=>x.id===id);
+  if(!p) return;
+  if(newType==='delete'){
+    parsedParas=parsedParas.filter(x=>x.id!==id);
+    const row=document.getElementById('row-'+id);
+    if(row) row.remove();
+    showToast('已删除该段落');
+    return;
+  }
+  if(newType==='doc-title') parsedParas.forEach(x=>{if(x.type==='doc-title'&&x.id!==id){x.type='body';x.suspect=false;}});
+  if(newType==='subtitle')  parsedParas.forEach(x=>{if(x.type==='subtitle'&&x.id!==id){x.type='body';x.suspect=false;}});
+  p.type=newType;p.suspect=false;p.autoNum=false;p.isSplitTitle=false;
+  const wrap=document.getElementById('pvwrap');
+  const st=wrap.scrollTop;
+  renderPreview(document.getElementById('docTitle').value.trim());
+  wrap.scrollTop=st;
+  showToast('已设为：'+({'doc-title':'主标题','subtitle':'副标题','h1':'一级标题','h2':'二级标题','h3':'三级标题','h4':'四级标题','body':'正文','salutation':'称呼行','closing':'结语','sender':'落款单位','date':'落款日期'}[newType]||newType));
+}
+
+function undoAutoNum(id){
+  const p=parsedParas.find(x=>x.id===id);
+  if(!p||!p.autoNum) return;
+  p.text=p.origText;p.type='body';p.autoNum=false;p.suspect=false;
+  const wrap=document.getElementById('pvwrap');
+  const st=wrap.scrollTop;
+  renderPreview(document.getElementById('docTitle').value.trim());
+  wrap.scrollTop=st;
+  showToast('已撤销自动编号');
+}
+
+/* ═══════════════════════════════════════════════════
+   导出 DOCX
+═══════════════════════════════════════════════════ */
+async function exportDocx(){
+  if(!parsedParas.length){showToast('请先预览排版');return;}
+  const btn=document.getElementById('exportBtn');
+  btn.disabled=true;btn.textContent='⏳ 生成中…';
+
+  try{
+    const cm=v=>Math.round(v*567);
+    const pt=v=>Math.round(v*20);
+
+    const PW=cm(21),PH=cm(29.7);
+    const MT=cm(3.7),MB=cm(3.5),ML=cm(2.8),MR=cm(2.6);
+    const LINE=pt(28);  // 固定行距28磅
+    const IND=640;      // 首行缩进2字符
+
+    function xmlEsc(s){
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+    }
+
+    // 段落属性：所有段落 before=0, after=0，彻底消除段间距
+    function pPr(jc,ind){
+      return `<w:pPr>`+
+        `<w:jc w:val="${jc}"/>`+
+        `<w:spacing w:line="${LINE}" w:lineRule="exact" w:before="0" w:after="0"/>`+
+        (ind>0?`<w:ind w:firstLine="${ind}"/>`:'') +
+        `</w:pPr>`;
+    }
+
+    function wRun(text,font,sz,bold,color){
+      const b=bold?'<w:b/><w:bCs/>':'';
+      const c=color?`<w:color w:val="${color}"/>`:'';
+      return `<w:r><w:rPr>`+
+        `<w:rFonts w:ascii="${font}" w:hAnsi="${font}" w:eastAsia="${font}" w:cs="${font}"/>`+
+        `<w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/>${b}${c}`+
+        `</w:rPr><w:t xml:space="preserve">${xmlEsc(text)}</w:t></w:r>`;
+    }
+
+    function wPara(text,jc,ind,font,sz,bold,color){
+      return `<w:p>${pPr(jc,ind)}${wRun(text,font,sz,bold,color)}</w:p>`;
+    }
+
+    function wBlank(){
+      return `<w:p><w:pPr>`+
+        `<w:spacing w:line="${LINE}" w:lineRule="exact" w:before="0" w:after="0"/>`+
+        `</w:pPr><w:r><w:rPr>`+
+        `<w:rFonts w:ascii="仿宋_GB2312" w:hAnsi="仿宋_GB2312" w:eastAsia="仿宋_GB2312" w:cs="仿宋_GB2312"/>`+
+        `<w:sz w:val="32"/><w:szCs w:val="32"/>`+
+        `</w:rPr><w:t> </w:t></w:r></w:p>`;
+    }
+
+    function wTable(text){
+      return `<w:p><w:pPr>`+
+        `<w:spacing w:line="${LINE}" w:lineRule="exact" w:before="0" w:after="0"/>`+
+        `</w:pPr><w:r><w:rPr>`+
+        `<w:rFonts w:ascii="仿宋_GB2312" w:hAnsi="仿宋_GB2312" w:eastAsia="仿宋_GB2312" w:cs="仿宋_GB2312"/>`+
+        `<w:sz w:val="24"/><w:szCs w:val="24"/><w:color w:val="888888"/>`+
+        `</w:rPr><w:t xml:space="preserve">${xmlEsc(text)}</w:t></w:r></w:p>`;
+    }
+
+    // ── 真实 OOXML 表格生成 ──
+    // 版心宽度（twips）= 页宽 - 左边距 - 右边距
+    const BODY_WIDTH = PW - ML - MR; // twips
+
+    function wTableReal(tableData, lineStyle){
+      if(!tableData||!tableData.length) return '';
+      const rows=tableData;
+      const colCount=Math.max(...rows.map(r=>r.length));
+      if(colCount===0) return '';
+
+      // 平均列宽
+      const colW=Math.floor(BODY_WIDTH/colCount);
+
+      // 表格属性
+      const isThree=lineStyle==='three';
+
+      // 边框颜色和宽度
+      const BORDER_OUTER=isThree?'12':'8';   // 1/8pt单位，outer:12=1.5pt, inner:4=0.5pt
+      const BORDER_INNER=isThree?'0':'4';
+      const BORDER_COLOR='000000';
+
+      // 单元格边框生成
+      function cellBorder(position,sz,color,type){
+        return `<w:${position} w:val="${type}" w:sz="${sz}" w:space="0" w:color="${color}"/>`;
+      }
+
+      function cellBorders(ri,ci,totalRows){
+        if(isThree){
+          // 三线表：只有顶线(粗)、表头底线(中)、表底线(粗)，无竖线
+          const isHead=ri===0;
+          const isLast=ri===totalRows-1;
+          let borders='<w:tcBorders>';
+          // 横线
+          if(ri===0) borders+=cellBorder('top','12',BORDER_COLOR,'single');
+          else borders+=cellBorder('top','0',BORDER_COLOR,'none');
+          if(isHead) borders+=cellBorder('bottom','8',BORDER_COLOR,'single');
+          else if(isLast) borders+=cellBorder('bottom','12',BORDER_COLOR,'single');
+          else borders+=cellBorder('bottom','0',BORDER_COLOR,'none');
+          // 无竖线
+          borders+=cellBorder('left','0',BORDER_COLOR,'none');
+          borders+=cellBorder('right','0',BORDER_COLOR,'none');
+          borders+='</w:tcBorders>';
+          return borders;
+        } else {
+          // 全框线
+          return `<w:tcBorders>`+
+            cellBorder('top','4',BORDER_COLOR,'single')+
+            cellBorder('bottom','4',BORDER_COLOR,'single')+
+            cellBorder('left','4',BORDER_COLOR,'single')+
+            cellBorder('right','4',BORDER_COLOR,'single')+
+          `</w:tcBorders>`;
+        }
+      }
+
+      // 表格属性XML
+      const tblBorderXml=isThree
+        ? `<w:tblBorders>`+
+            `<w:top w:val="single" w:sz="12" w:space="0" w:color="${BORDER_COLOR}"/>`+
+            `<w:bottom w:val="single" w:sz="12" w:space="0" w:color="${BORDER_COLOR}"/>`+
+            `<w:insideH w:val="none" w:sz="0" w:space="0" w:color="auto"/>`+
+            `<w:insideV w:val="none" w:sz="0" w:space="0" w:color="auto"/>`+
+          `</w:tblBorders>`
+        : `<w:tblBorders>`+
+            `<w:top w:val="single" w:sz="4" w:space="0" w:color="${BORDER_COLOR}"/>`+
+            `<w:left w:val="single" w:sz="4" w:space="0" w:color="${BORDER_COLOR}"/>`+
+            `<w:bottom w:val="single" w:sz="4" w:space="0" w:color="${BORDER_COLOR}"/>`+
+            `<w:right w:val="single" w:sz="4" w:space="0" w:color="${BORDER_COLOR}"/>`+
+            `<w:insideH w:val="single" w:sz="4" w:space="0" w:color="${BORDER_COLOR}"/>`+
+            `<w:insideV w:val="single" w:sz="4" w:space="0" w:color="${BORDER_COLOR}"/>`+
+          `</w:tblBorders>`;
+
+      const tblPr=`<w:tblPr>`+
+        `<w:tblStyle w:val="TableGrid"/>`+
+        `<w:tblW w:w="${BODY_WIDTH}" w:type="dxa"/>`+
+        `<w:jc w:val="center"/>`+
+        tblBorderXml+
+        `<w:tblLook w:val="0000"/>`+
+      `</w:tblPr>`;
+
+      // 列宽定义
+      let tblGrid=`<w:tblGrid>`;
+      for(let c=0;c<colCount;c++){
+        const w=c<colCount-1?colW:BODY_WIDTH-(colW*(colCount-1));
+        tblGrid+=`<w:gridCol w:w="${w}"/>`;
+      }
+      tblGrid+=`</w:tblGrid>`;
+
+      // 生成行
+      let rowsXml='';
+      rows.forEach((row,ri)=>{
+        const isHead=ri===0;
+        // 补全列数
+        const paddedRow=[...row];
+        while(paddedRow.length<colCount) paddedRow.push({text:'',isHeader:false});
+
+        const trPr=isHead
+          ? `<w:trPr><w:tblHeader/></w:trPr>`
+          : `<w:trPr></w:trPr>`;
+
+        let cells='';
+        paddedRow.slice(0,colCount).forEach((cell,ci)=>{
+          const actualW=ci<colCount-1?colW:BODY_WIDTH-(colW*(colCount-1));
+          const jc=isHead?'center':'left';
+          const bold=isHead?'<w:b/><w:bCs/>':'';
+          const borders=cellBorders(ri,ci,rows.length);
+          const tcPr=`<w:tcPr>`+
+            `<w:tcW w:w="${actualW}" w:type="dxa"/>`+
+            borders+
+            `<w:tcMar><w:top w:w="60" w:type="dxa"/><w:left w:w="108" w:type="dxa"/>`+
+            `<w:bottom w:w="60" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tcMar>`+
+          `</w:tcPr>`;
+          const cellPPr=`<w:pPr><w:jc w:val="${jc}"/>`+
+            `<w:spacing w:line="${LINE}" w:lineRule="exact" w:before="0" w:after="0"/>`+
+            `</w:pPr>`;
+          const cellRPr=`<w:rPr>`+
+            `<w:rFonts w:ascii="仿宋_GB2312" w:hAnsi="仿宋_GB2312" w:eastAsia="仿宋_GB2312" w:cs="仿宋_GB2312"/>`+
+            `<w:sz w:val="${SZ3}"/><w:szCs w:val="${SZ3}"/>${bold}`+
+            `</w:rPr>`;
+          const cellText=`<w:p>${cellPPr}<w:r>${cellRPr}<w:t xml:space="preserve">${xmlEsc(cell.text||'')}</w:t></w:r></w:p>`;
+          cells+=`<w:tc>${tcPr}${cellText}</w:tc>`;
+        });
+        rowsXml+=`<w:tr>${trPr}${cells}</w:tr>`;
+      });
+
+      return `<w:tbl>${tblPr}${tblGrid}${rowsXml}</w:tbl>`;
+    }
+
+    const manualTitle=document.getElementById('docTitle').value.trim();
+    const subtitle=document.getElementById('docSubtitle').value.trim();
+    const docTitlePara=parsedParas.find(p=>p.type==='doc-title');
+    const subtitlePara=parsedParas.find(p=>p.type==='subtitle');
+    const finalTitle=manualTitle||(docTitlePara?docTitlePara.text:'')||detectedTitle||'';
+    const finalSubtitle=subtitle||(subtitlePara?subtitlePara.text:'')||'';
+
+    const SZ3=32; // 三号 16pt
+    const SZ2=44; // 二号 22pt
+
+    let bodyXml='';
+    if(finalTitle){
+      bodyXml+=wPara(finalTitle,'center',0,'方正小标宋简体',SZ2,false);
+      if(finalSubtitle){
+        bodyXml+=wPara(finalSubtitle,'center',0,'楷体_GB2312',SZ3,true);
+      }
+      bodyXml+=wBlank();
+    }
+
+    for(const p of parsedParas){
+      if(!p.text) continue;
+      if(['doc-title','subtitle','delete'].includes(p.type)) continue;
+
+      switch(p.type){
+        case 'table':{
+          const doTbl=document.getElementById('o_table').checked;
+          const lineStyle=document.getElementById('o_table_line').value;
+          if(doTbl&&p.tableData&&p.tableData.length){
+            bodyXml+=wTableReal(p.tableData,lineStyle);
+          } else {
+            bodyXml+=wTable(p.text);
+          }
+          break;
+        }
+        case 'h1':          bodyXml+=wPara(p.text,'both',IND,'黑体',SZ3,false); break;
+        case 'h2':          bodyXml+=wPara(p.text,'both',IND,'楷体_GB2312',SZ3,true); break;
+        case 'h2label':     bodyXml+=wPara(p.text,'center',0,'楷体_GB2312',SZ3,true); break;
+        case 'h3':          bodyXml+=wPara(p.text,'both',IND,'仿宋_GB2312',SZ3,true); break;
+        case 'h4':          bodyXml+=wPara(p.text,'both',IND,'仿宋_GB2312',SZ3,false); break;
+        case 'figcaption':  bodyXml+=wPara(p.text,'center',0,'仿宋_GB2312',SZ3,false); break;
+        case 'figcaption-table': bodyXml+=wPara(p.text,'center',0,'仿宋_GB2312',SZ3,true); break;
+        // 请示汇报特殊行
+        case 'salutation':  bodyXml+=wPara(p.text,'left',0,'仿宋_GB2312',SZ3,false); break;
+        case 'closing':     bodyXml+=wPara(p.text,'left',0,'仿宋_GB2312',SZ3,false); break;
+        case 'sender':      bodyXml+=wPara(p.text,'right',0,'仿宋_GB2312',SZ3,false); break;
+        case 'date':        bodyXml+=wPara(p.text,'right',0,'仿宋_GB2312',SZ3,false); break;
+        default:            bodyXml+=wPara(p.text,'both',IND,'仿宋_GB2312',SZ3,false); break;
+      }
+    }
+
+    // styles.xml：强制覆盖Normal段落样式，彻底消除Word默认段间距
+    const stylesXml=
+`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:docDefaults>
+    <w:rPrDefault>
+      <w:rPr>
+        <w:rFonts w:ascii="仿宋_GB2312" w:hAnsi="仿宋_GB2312" w:eastAsia="仿宋_GB2312" w:cs="仿宋_GB2312"/>
+        <w:sz w:val="32"/><w:szCs w:val="32"/>
+      </w:rPr>
+    </w:rPrDefault>
+    <w:pPrDefault>
+      <w:pPr>
+        <w:spacing w:line="${LINE}" w:lineRule="exact" w:before="0" w:after="0"/>
+      </w:pPr>
+    </w:pPrDefault>
+  </w:docDefaults>
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal">
+    <w:name w:val="Normal"/>
+    <w:pPr>
+      <w:spacing w:line="${LINE}" w:lineRule="exact" w:before="0" w:after="0"/>
+    </w:pPr>
+    <w:rPr>
+      <w:rFonts w:ascii="仿宋_GB2312" w:hAnsi="仿宋_GB2312" w:eastAsia="仿宋_GB2312" w:cs="仿宋_GB2312"/>
+      <w:sz w:val="32"/><w:szCs w:val="32"/>
+    </w:rPr>
+  </w:style>
+  <w:style w:type="table" w:styleId="TableGrid">
+    <w:name w:val="Table Grid"/>
+    <w:tblPr>
+      <w:tblBorders>
+        <w:top w:val="single" w:sz="4" w:space="0" w:color="000000"/>
+        <w:left w:val="single" w:sz="4" w:space="0" w:color="000000"/>
+        <w:bottom w:val="single" w:sz="4" w:space="0" w:color="000000"/>
+        <w:right w:val="single" w:sz="4" w:space="0" w:color="000000"/>
+        <w:insideH w:val="single" w:sz="4" w:space="0" w:color="000000"/>
+        <w:insideV w:val="single" w:sz="4" w:space="0" w:color="000000"/>
+      </w:tblBorders>
+    </w:tblPr>
+  </w:style>
+</w:styles>`.replace('${LINE}',LINE).replace('${LINE}',LINE);
+
+    const documentXml=
+`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document
+  xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+  xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+<w:body>
+${bodyXml}
+<w:sectPr>
+  <w:pgSz w:w="${PW}" w:h="${PH}"/>
+  <w:pgMar w:top="${MT}" w:right="${MR}" w:bottom="${MB}" w:left="${ML}" w:header="709" w:footer="709" w:gutter="0"/>
+</w:sectPr>
+</w:body>
+</w:document>`;
+
+    const contentTypes=
+`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml"
+    ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml"
+    ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+</Types>`;
+
+    const rels=
+`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1"
+    Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"
+    Target="word/document.xml"/>
+</Relationships>`;
+
+    const docRels=
+`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1"
+    Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"
+    Target="styles.xml"/>
+</Relationships>`;
+
+    const zip=new JSZip();
+    zip.file('[Content_Types].xml',contentTypes);
+    zip.file('_rels/.rels',rels);
+    zip.file('word/document.xml',documentXml);
+    zip.file('word/styles.xml',stylesXml);
+    zip.file('word/_rels/document.xml.rels',docRels);
+
+    const blob=await zip.generateAsync({
+      type:'blob',
+      mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      compression:'DEFLATE',compressionOptions:{level:6}
+    });
+
+    const fname=(finalTitle||'公文排版')+'_已排版.docx';
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download=fname;
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+
+    showToast('✓ 下载成功：'+fname);
+    addLog('ok','文档生成：'+fname);
+
+  }catch(err){
+    console.error('exportDocx:',err);
+    addLog('warn','生成失败：'+err.message);
+    showToast('生成失败：'+err.message);
+  }finally{
+    btn.disabled=false;
+    btn.textContent='⬇ 下载公文 Word（.docx）';
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   工具函数
+═══════════════════════════════════════════════════ */
+function pg(pct,label){
+  const w=document.getElementById('pgwrap');
+  if(pct>0) w.classList.add('on');
+  document.getElementById('pgfill').style.width=pct+'%';
+  document.getElementById('pglabel').textContent=label;
+}
+function addLog(type,msg){
+  const el=document.getElementById('logbox');
+  el.classList.add('on');
+  const d=document.createElement('div');
+  d.className=type==='ok'?'lok':'lwarn';
+  d.textContent=(type==='ok'?'✓ ':'⚠ ')+msg;
+  el.appendChild(d);el.scrollTop=el.scrollHeight;
+}
+function clearLog(){
+  const el=document.getElementById('logbox');
+  el.innerHTML='';el.classList.remove('on');
+}
+function esc(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+let _tt;
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('on');
+  clearTimeout(_tt);_tt=setTimeout(()=>t.classList.remove('on'),3000);
+}
+
+</script>
+</body>
+</html>
