@@ -132,6 +132,25 @@ header h1{font-size:17px;font-family:'SimHei','黑体',sans-serif;letter-spacing
 .pv-row.special-line .pv-text{background:#E8F5E9;border-left:3px solid #43A047;padding-left:6px;border-radius:2px;}
 /* 加粗拆分标题 */
 .pv-row.split-title .pv-text{background:#FFF3E0;border-left:3px solid #FF9800;padding-left:6px;border-radius:2px;}
+/* Word标题样式段落（蓝色，等待用户分配层级） */
+.pv-row.word-heading-row .pv-text{background:#E3F2FD;border-left:3px solid #1E88E5;padding-left:6px;border-radius:2px;}
+
+/* ── 标题确认面板 ── */
+.title-confirm-panel{display:none;flex-direction:column;gap:10px;padding:14px 16px;background:#EEF2FF;border:1px solid #7986CB;border-radius:4px;margin-top:12px;}
+.title-confirm-panel.on{display:flex;}
+.tcp-header{display:flex;align-items:center;gap:8px;font-size:13px;font-family:'SimHei',sans-serif;color:#283593;}
+.tcp-header::before{content:'✏️';}
+.tcp-row{display:flex;align-items:center;gap:10px;}
+.tcp-label{font-size:12.5px;color:var(--muted);font-family:'SimHei',sans-serif;min-width:72px;white-space:nowrap;}
+.tcp-input{flex:1;padding:8px 12px;border:1px solid #9FA8DA;border-radius:3px;font-family:'SimSun',serif;font-size:14px;outline:none;background:#fff;transition:.2s;}
+.tcp-input:focus{border-color:#3F51B5;box-shadow:0 0 0 2px rgba(63,81,181,.12);}
+.tcp-hint{font-size:11.5px;color:#7986CB;white-space:nowrap;}
+.tcp-actions{display:flex;gap:8px;align-items:center;margin-top:2px;}
+.tcp-confirm-btn{background:#3F51B5;color:#fff;border:none;border-radius:3px;padding:9px 22px;font-size:13px;font-family:'SimHei',sans-serif;cursor:pointer;transition:.15s;letter-spacing:.5px;}
+.tcp-confirm-btn:hover{background:#303F9F;}
+.tcp-skip-btn{background:#fff;color:var(--muted);border:1px solid var(--border);border-radius:3px;padding:8px 16px;font-size:12.5px;font-family:'SimHei',sans-serif;cursor:pointer;transition:.15s;}
+.tcp-skip-btn:hover{background:var(--bg);}
+.tcp-note{font-size:11.5px;color:#9FA8DA;line-height:1.6;}
 
 /* 待确认提示条 */
 .confirm-banner{display:none;align-items:center;gap:10px;padding:9px 14px;background:#FFF8E1;border:1px solid #FFD54F;border-radius:3px;margin-bottom:10px;font-size:12.5px;}
@@ -241,15 +260,24 @@ header h1{font-size:17px;font-family:'SimHei','黑体',sans-serif;letter-spacing
         <button class="fi-rm" onclick="removeFile()">✕ 移除</button>
       </div>
 
-      <div class="title-row">
-        <span class="tlabel">公文主标题</span>
-        <input class="tinput" id="docTitle" type="text" placeholder="留空则自动识别，识别后显示在下方预览中可确认或修改">
-        <span class="tnote">二号小标宋居中</span>
-      </div>
-      <div class="title-row" style="margin-top:8px;">
-        <span class="tlabel">副标题（选填）</span>
-        <input class="tinput" id="docSubtitle" type="text" placeholder="如：——关于XXX的说明　（2024年XX月）　数智化事业部　留空不添加">
-        <span class="tnote">三号楷体加粗居中</span>
+      <!-- 标题确认面板（上传后弹出，确认后才正式解析） -->
+      <div class="title-confirm-panel" id="titleConfirmPanel">
+        <div class="tcp-header">请确认公文主标题和副标题后再开始解析</div>
+        <div class="tcp-row">
+          <span class="tcp-label">公文主标题</span>
+          <input class="tcp-input" id="tcpTitle" type="text" placeholder="自动检测中…">
+          <span class="tcp-hint">二号小标宋居中</span>
+        </div>
+        <div class="tcp-row">
+          <span class="tcp-label">副标题（选填）</span>
+          <input class="tcp-input" id="tcpSubtitle" type="text" placeholder="如：——关于XXX的说明　（2024年XX月）　留空不添加">
+          <span class="tcp-hint">三号楷体加粗居中</span>
+        </div>
+        <div class="tcp-actions">
+          <button class="tcp-confirm-btn" onclick="confirmTitleAndParse()">✓ 确认标题，开始解析</button>
+          <button class="tcp-skip-btn" onclick="skipTitleConfirm()">跳过，直接解析</button>
+          <span class="tcp-note">主标题确认后将从正文中剔除，避免影响层级识别</span>
+        </div>
       </div>
 
       <div class="opts">
@@ -269,7 +297,7 @@ header h1{font-size:17px;font-family:'SimHei','黑体',sans-serif;letter-spacing
   <div class="card">
     <div class="ch">
       <div class="ct">第二步：预览并确认段落类型</div>
-      <button class="btn btn-ghost" onclick="runPreview()" style="padding:5px 13px;font-size:12px;">🔄 重新解析</button>
+      <button class="btn btn-ghost" onclick="reParseWithCurrentTitles()" style="padding:5px 13px;font-size:12px;">🔄 重新解析</button>
     </div>
     <div class="cb" style="display:flex;flex-direction:column;gap:10px;">
 
@@ -322,7 +350,7 @@ header h1{font-size:17px;font-family:'SimHei','黑体',sans-serif;letter-spacing
     <span style="color:#B0A898;">提示：需本机安装方正系列字体，否则 Word 将回退至默认字体。</span>
   </div>
   <div class="abtns">
-    <button class="btn btn-ghost" onclick="runPreview()">👁 预览排版</button>
+    <button class="btn btn-ghost" onclick="reParseWithCurrentTitles()">👁 预览排版</button>
     <button class="btn btn-main" id="exportBtn" onclick="exportDocx()" disabled>⬇ 下载公文 Word（.docx）</button>
   </div>
 </div>
@@ -340,6 +368,9 @@ let numFixCount   = 0;
 let tableCount    = 0;
 let detectedTitle = '';
 let paraIdCounter = 0;
+// 已确认的主副标题（经用户在 titleConfirmPanel 确认后写入）
+let confirmedTitle    = '';
+let confirmedSubtitle = '';
 
 // 表格选项联动
 function onTableOptChange(){
@@ -363,15 +394,65 @@ function handleFile(f){
   const ext=f.name.split('.').pop().toLowerCase();
   if(!['docx','txt'].includes(ext)){showToast('仅支持 .docx 和 .txt 格式');return;}
   currentFile=f;
+  confirmedTitle='';confirmedSubtitle='';
   document.getElementById('fiName').textContent=f.name;
   document.getElementById('fiMeta').textContent=(f.size/1024).toFixed(1)+' KB · '+ext.toUpperCase();
   document.getElementById('finfo').classList.add('on');
+  // 显示标题确认面板，预填检测值
+  showTitleConfirmPanel(f,ext);
+}
+
+async function showTitleConfirmPanel(f,ext){
+  const panel=document.getElementById('titleConfirmPanel');
+  const tcpTitle=document.getElementById('tcpTitle');
+  const tcpSubtitle=document.getElementById('tcpSubtitle');
+  tcpTitle.value='';tcpSubtitle.value='';
+  tcpTitle.placeholder='自动检测中…';
+  panel.classList.add('on');
+  // 快速扫描：只提取文本用于标题检测，不完整走分类流程
+  try{
+    const extracted=ext==='txt'?await extractTxt(f):await extractDocx(f);
+    const wordStyleTitle=extracted.wordStyleTitle||'';
+    const plainLines=extracted.items.filter(i=>!i.isTable).map(i=>i.text);
+    const ti=detectTitleArea(wordStyleTitle,f.name,plainLines);
+    tcpTitle.value=ti.title||'';
+    tcpTitle.placeholder='请输入主标题，或留空';
+    // 简单副标题检测：查找破折号开头或括号年份格式
+    const subtitleCandidate=plainLines.find(t=>
+      /^——/.test(t)||/^（\d{4}年/.test(t)||/^—/.test(t)
+    )||'';
+    tcpSubtitle.value=subtitleCandidate;
+    if(ti.source!=='none') showToast('已自动检测标题，请确认后开始解析');
+    else showToast('请填写主标题后开始解析');
+  }catch(e){
+    tcpTitle.placeholder='检测失败，请手动填写';
+  }
+}
+
+function confirmTitleAndParse(){
+  confirmedTitle   =document.getElementById('tcpTitle').value.trim();
+  confirmedSubtitle=document.getElementById('tcpSubtitle').value.trim();
+  document.getElementById('titleConfirmPanel').classList.remove('on');
+  runPreview();
+}
+
+function skipTitleConfirm(){
+  confirmedTitle='';confirmedSubtitle='';
+  document.getElementById('titleConfirmPanel').classList.remove('on');
+  runPreview();
+}
+
+// 重新解析（已有确认标题时直接用，不重新弹确认面板）
+function reParseWithCurrentTitles(){
+  if(!currentFile){showToast('请先上传文件');return;}
   runPreview();
 }
 
 function removeFile(){
   currentFile=null;parsedParas=[];detectedTitle='';
+  confirmedTitle='';confirmedSubtitle='';
   document.getElementById('finfo').classList.remove('on');
+  document.getElementById('titleConfirmPanel').classList.remove('on');
   document.getElementById('fileInput').value='';
   document.getElementById('pvbody').innerHTML='';
   document.getElementById('pvbody').classList.remove('on');
@@ -406,6 +487,19 @@ async function extractDocx(file){
         }
         const items=[];
         let wordStyleTitle='';
+
+        function processListNode(listNode, listTag){
+          // 处理 <ol>/<ul>，为 <ol> 子项加自增序号前缀
+          let counter=0;
+          listNode.querySelectorAll(':scope > li').forEach(li=>{
+            counter++;
+            const t=getTextWithBreaks(li).trim();
+            if(!t) return;
+            const prefix=listTag==='ol'?(counter+'.'):'';
+            items.push({text:prefix+t, isTable:false, fromWordStyle:false, listType:listTag});
+          });
+        }
+
         div.childNodes.forEach(node=>{
           if(node.nodeType!==1) return;
           const tag=node.tagName.toLowerCase();
@@ -426,13 +520,19 @@ async function extractDocx(file){
             items.push({
               text:'[表格]'+(cellTexts.length?'（'+cellTexts.slice(0,3).join('；')+'…）':''),
               isTable:true,
-              tableData: rows  // 完整结构化数据
+              tableData: rows
             });
-          } else if(['p','h1','h2','h3','h4','h5','h6','li'].includes(tag)){
+          } else if(tag==='ol'||tag==='ul'){
+            // ★ Bug1修复：正确处理有序/无序列表
+            processListNode(node, tag);
+          } else if(['p','h1','h2','h3','h4','h5','h6'].includes(tag)){
             const t=getTextWithBreaks(node).trim();
             if(t){
+              const fromWordStyle=['h1','h2','h3','h4','h5','h6'].includes(tag);
               if(tag==='h1'&&!wordStyleTitle) wordStyleTitle=t;
-              items.push({text:t,isTable:false,fromH1:(tag==='h1')});
+              // ★ Bug3修复：标记来自Word标题样式的段落，避免误触isSuspectHeading
+              // ★ Bug5修复：同时记录原始 tag，供后续自动层级推断使用
+              items.push({text:t, isTable:false, fromWordStyle, listType:null, wordTag:fromWordStyle?tag:null});
             }
           }
         });
@@ -473,6 +573,14 @@ function classifySpecial(t){
 
 // Markdown清洗（含加粗标题拆分）
 function cleanMarkdown(s){
+  // ★ Bug4修复：先去反引号，再处理 **，避免反引号内的 ** 逃脱清洗
+  s=s.replace(/`(.+?)`/g,'$1');
+  // ★ Bug6修复：**key：** 或 **key**： 纯引导语行（冒号后无正文）→ 作为 boldTitle 单独输出
+  const boldOnly=s.match(/^\*\*(.{2,25}[：:])\*\*\s*$|^\*\*(.{2,25})\*\*[：:]\s*$/);
+  if(boldOnly){
+    const key=(boldOnly[1]||boldOnly[2]).replace(/[：:]$/,'').trim();
+    return{text:'',boldTitle:key,wasSplit:true,boldOnly:true};
+  }
   // **标题词：**正文 → 拆分为两条
   const boldSplit=s.match(/^\*\*(.{2,25}[：:])\*\*(.+)$/);
   if(boldSplit){
@@ -486,7 +594,6 @@ function cleanMarkdown(s){
   s=s.replace(/\*\*(.+?)\*\*/g,'$1');
   s=s.replace(/__(.+?)__/g,'$1');
   s=s.replace(/\*(.+?)\*/g,'$1');
-  s=s.replace(/`(.+?)`/g,'$1');
   s=s.replace(/^>\s*/,'');
   s=s.replace(/^[-*_]{3,}$/,'');
   return{text:s.trim(),wasSplit:false};
@@ -566,6 +673,8 @@ function isSuspectHeading(t){
   if(/^[a-zA-Z0-9\s\/\-\.]+$/.test(t)) return false;
   if(/[：:].+/.test(t)) return false;
   if(/通过|实现|形成|达成|完成/.test(t)&&t.length>8) return false;
+  // ★ Bug2补充修复：以 Markdown 列表符号（- / • / * ）开头的段落是列表条目，非标题
+  if(/^[-•*]\s+/.test(t)) return false;
   if(/^(通过|实现|完成|确保|保证|提升|加强|开展|推进|促进)/.test(t)) return false;
   if(/^[\u4e00-\u9fff·（）()]{2,30}(公司|单位|部门|部|中心|局|院|所|委|集团|办公室|处|队|站)$/.test(t)) return false;
   if(/^\d{4}年\d{1,2}月\d{1,2}日$/.test(t)) return false;
@@ -651,10 +760,27 @@ async function runPreview(){
       markdown: document.getElementById('o_markdown').checked,
     };
 
+    // 确定主标题：用户确认 > 自动检测
+    let finalDocTitle=confirmedTitle;
+    if(!finalDocTitle){
+      const plainLines=rawItems.filter(i=>!i.isTable).map(i=>i.text);
+      const ti=detectTitleArea(wordStyleTitle,fileNameTitle,plainLines);
+      finalDocTitle=ti.title;
+      detectedTitle=ti.title;
+      if(ti.source==='none') addLog('warn','未检测到主标题，建议移除文件后重新上传并填写');
+      else addLog('ok',`主标题（${ti.source}）：${ti.title.slice(0,25)}`);
+    } else {
+      detectedTitle=finalDocTitle;
+      addLog('ok',`主标题（用户确认）：${finalDocTitle.slice(0,25)}`);
+    }
+    if(confirmedSubtitle) addLog('ok',`副标题（用户确认）：${confirmedSubtitle.slice(0,20)}`);
+
     pg(40,'格式清洗…');
 
     // 展开段内换行（智能识别并列结构）
     const PARALLEL_RE=/^[一二三四五六七八九十]+是|^首先|^其次|^再次|^最后|^另外/;
+    // ★ Bug3修复：检测被软回车截断的 **键**：+ 不完整尾部，合并到下一行
+    const BOLD_KEY_INCOMPLETE=/^\*\*[^*]{2,25}[：:]\*\*.{0,15}$/;
     let expanded=[];
     for(const item of rawItems){
       if(item.isTable){expanded.push(item);continue;}
@@ -662,9 +788,21 @@ async function runPreview(){
         const parts=item.text.split('\n').map(s=>s.trim()).filter(Boolean);
         const isParallel=parts.length>1&&parts.slice(1).every(p=>PARALLEL_RE.test(p));
         if(isParallel){
-          expanded.push({text:parts.join(' '),isTable:false});
+          expanded.push({...item,text:parts.join(' ')});
         } else {
-          for(const sub of parts) expanded.push({text:sub,isTable:false});
+          // 合并因软回车截断的 **key：** + 残文 行
+          const merged=[];
+          for(let i=0;i<parts.length;i++){
+            const cur=parts[i];
+            // 若当前行是 **key：**残片（不完整），尝试与下一行合并
+            if(i<parts.length-1&&BOLD_KEY_INCOMPLETE.test(cur)){
+              merged.push(cur+parts[i+1]);
+              i++; // 跳过已合并的下一行
+            } else {
+              merged.push(cur);
+            }
+          }
+          for(const sub of merged) expanded.push({...item,text:sub});
         }
       } else {
         expanded.push(item);
@@ -680,19 +818,25 @@ async function runPreview(){
       if(item.isTable){tableCount++;cleanedItems.push({text:item.text,isTable:true,type:'table',tableData:item.tableData||null});continue;}
 
       let s=item.text;
+      const fromWordStyle=!!item.fromWordStyle;
+      const wordTag=item.wordTag||null;
 
-      // 0. 特殊行优先
+      // 0. 特殊行优先（Word样式段落也需检测）
       const sp=classifySpecial(s);
-      if(sp){cleanedItems.push({text:s,isTable:false,type:sp,suspect:false});continue;}
+      if(sp){cleanedItems.push({text:s,isTable:false,type:sp,suspect:false,fromWordStyle});continue;}
 
       // 1. Markdown清洗（含加粗标题拆分）
       if(opts.markdown){
         const md=cleanMarkdown(s);
-        if(!md.text){fixCount++;continue;}
+        if(!md.text&&!md.wasSplit){fixCount++;continue;}
         if(md.wasSplit){
-          // 拆分出的标题行：标记为 suspect+isSplitTitle，不自动补编号，等用户手动选
-          cleanedItems.push({text:md.boldTitle,isTable:false,type:'body',suspect:true,isSplitTitle:true});
-          s=md.text;
+          cleanedItems.push({text:md.boldTitle,isTable:false,type:'body',suspect:true,isSplitTitle:true,fromWordStyle:false,wordTag:null});
+          if(!md.boldOnly&&md.text){
+            s=md.text;
+          } else {
+            // 纯引导语行（boldOnly），无正文部分，跳过后续处理
+            continue;
+          }
         } else {
           s=md.text;
         }
@@ -700,7 +844,12 @@ async function runPreview(){
 
       if(!s) continue;
 
-      // 2. 序号规范化 + 纠偏
+      // ★ Bug2补充修复：去掉 Markdown 列表符号前缀（- / • / * ），同时打标记豁免 isSuspectHeading
+      let isMarkdownList=false;
+      if(/^[-•*]\s+/.test(s)){s=s.replace(/^[-•*]\s+/,'');isMarkdownList=true;}
+      if(!s) continue;
+
+      // 2. 序号规范化 + 纠偏（来自<ol>的条目已有前缀，跳过圆括号修正）
       s=normalizeAndFix(s);
 
       // 3. 标点清洗
@@ -711,49 +860,32 @@ async function runPreview(){
       if(!s) continue;
 
       const type=classify(s);
-      const suspect=type==='body'?isSuspectHeading(s):false;
-      cleanedItems.push({text:s,isTable:false,type,suspect,isSplitTitle:false});
-    }
-
-    // 主标题识别
-    const manualTitle=document.getElementById('docTitle').value.trim();
-    const plainTexts=cleanedItems.filter(i=>!i.isTable).map(i=>i.text);
-    let titleInfo={title:'',source:'none'};
-
-    if(!manualTitle){
-      titleInfo=detectTitleArea(wordStyleTitle,fileNameTitle,plainTexts);
-      detectedTitle=titleInfo.title;
-      if(titleInfo.source==='none'){
-        addLog('warn','未检测到主标题，请在上方输入框手动填写');
-      } else {
-        addLog('ok',`主标题（${titleInfo.source}）：${titleInfo.title.slice(0,25)}`);
-      }
+      // ★ Bug2修复：无序列表项（listType==='ul' 或 Markdown - 前缀）豁免 isSuspectHeading
+      // ★ Bug3修复：fromWordStyle段落跳过isSuspectHeading，改为标记为word-heading等待用户选层级
+      const isFromUL = item.listType === 'ul' || isMarkdownList;
+      const suspect=(fromWordStyle||isFromUL) ? false : (type==='body'?isSuspectHeading(s):false);
+      cleanedItems.push({text:s,isTable:false,type,suspect,isSplitTitle:false,fromWordStyle,wordTag});
     }
 
     // 自动编号
     const numberer=makeNumberer();
-    const docTitleText=titleInfo.title||'';
     const autoNumbered=[];
+    let wordHeadingCount=0;
 
     for(const item of cleanedItems){
       const id='p'+(++paraIdCounter);
 
       if(item.isTable){
-        // 查找前一个非空段落，判断是否为表题
-        const prevPara=cleanedItems.filter(x=>!x.isTable).slice(-1)[0];
-        let isCaption=false;
-        if(prevPara&&/^表\s*[\d一二三四五六七八九十]+/.test(prevPara.text)){
-          // 将前一段标记为表题（已在 cleanedItems 里，需回溯修改）
-          const prevInParsed=parsedParas.slice(-1)[0];
-          if(prevInParsed&&prevInParsed.text===prevPara.text) prevInParsed.type='figcaption-table';
+        const prevInParsed=parsedParas.slice(-1)[0];
+        if(prevInParsed&&/^表\s*[\d一二三四五六七八九十]+/.test(prevInParsed.text)){
+          prevInParsed.type='figcaption-table';
         }
-        // 表格文本清洗
         let tableData=item.tableData?JSON.parse(JSON.stringify(item.tableData)):null;
         const doClean=document.getElementById('o_table').checked&&document.getElementById('o_table_clean').checked;
         if(tableData&&doClean){
           tableData=tableData.map(row=>row.map(cell=>{
-            let s=normalizeAndFix(cell.text);
-            const{text:sc}=cleanPunct(s,opts);
+            let cs=normalizeAndFix(cell.text);
+            const{text:sc}=cleanPunct(cs,opts);
             return{...cell,text:sc};
           }));
         }
@@ -767,13 +899,37 @@ async function runPreview(){
         continue;
       }
 
-      // 文档主标题
-      if(docTitleText&&item.text===docTitleText&&item.type!=='h1'){
+      // 主标题排除：与用户确认/检测标题完全匹配的段落标记为doc-title并跳过编号
+      // ★ Bug1修复：去掉 item.type!=='h1' 的错误限制，Word h1样式主标题也能被正确剔除
+      if(finalDocTitle&&item.text.replace(/\s/g,'')===finalDocTitle.replace(/\s/g,'')){
         parsedParas.push({id,text:item.text,type:'doc-title',suspect:false,autoNum:false});
         continue;
       }
       if(item.type==='doc-title'||item.type==='subtitle'){
         parsedParas.push({id,text:item.text,type:item.type,suspect:false,autoNum:false});
+        continue;
+      }
+
+      // ★ Bug5修复：Word标题样式段落根据 wordTag 自动推断层级
+      // h1 已被主标题排除逻辑处理；h2→h2；h3→h3；h4→h4；仅 classify()=body 的 h1 残余才标蓝
+      if(item.fromWordStyle&&item.type==='body'){
+        const wt=item.wordTag;
+        // h2/h3/h4 直接按层级归类，不标蓝
+        if(wt==='h2'){
+          parsedParas.push({id,text:item.text,type:'h2',suspect:false,autoNum:false,isWordHeading:false});
+          continue;
+        }
+        if(wt==='h3'){
+          parsedParas.push({id,text:item.text,type:'h3',suspect:false,autoNum:false,isWordHeading:false});
+          continue;
+        }
+        if(wt==='h4'){
+          parsedParas.push({id,text:item.text,type:'h4',suspect:false,autoNum:false,isWordHeading:false});
+          continue;
+        }
+        // h1 或未知：标蓝等待用户手动分配
+        wordHeadingCount++;
+        parsedParas.push({id,text:item.text,type:'body',suspect:false,autoNum:false,isWordHeading:true});
         continue;
       }
 
@@ -783,13 +939,11 @@ async function runPreview(){
       else if(item.type==='h3'){const m=item.text.match(/^(\d+)[\.．]/);if(m)numberer.syncH3(parseInt(m[1]));}
 
       if(item.suspect&&!item.isSplitTitle){
-        // 疑似标题自动补h1（保守策略）
         const prefix=numberer.next('h1');
         const newText=prefix+item.text;
         parsedParas.push({id,text:newText,type:'h1',suspect:false,autoNum:true,origText:item.text,prefix});
         autoNumbered.push(newText.slice(0,20));
       } else if(item.isSplitTitle){
-        // 加粗拆分标题：保留suspect，不自动补编号，让用户手动选层级
         parsedParas.push({id,text:item.text,type:'body',suspect:true,autoNum:false,isSplitTitle:true});
       } else {
         parsedParas.push({id,text:item.text,type:item.type,suspect:false,autoNum:false});
@@ -797,6 +951,7 @@ async function runPreview(){
     }
 
     if(autoNumbered.length>0) addLog('ok',`自动补编号 ${autoNumbered.length} 处`);
+    if(wordHeadingCount>0) addLog('ok',`识别 Word 标题样式段落 ${wordHeadingCount} 处（蓝色标注，请手动选层级）`);
     addLog('ok',`序号纠偏 ${numFixCount} 处，格式清洗 ${fixCount} 处`);
 
     const specialCount=['salutation','closing','sender','date'].reduce((n,t)=>n+parsedParas.filter(p=>p.type===t).length,0);
@@ -812,7 +967,7 @@ async function runPreview(){
     }
 
     pg(85,'渲染预览…');
-    renderPreview(manualTitle);
+    renderPreview();
 
     const cnt=t=>parsedParas.filter(p=>p.type===t).length;
     document.getElementById('sChar').textContent=parsedParas.filter(p=>!['table','doc-title','subtitle'].includes(p.type)).reduce((s,p)=>s+p.text.length,0);
@@ -844,9 +999,9 @@ async function runPreview(){
 /* ═══════════════════════════════════════════════════
    渲染预览（支持 contenteditable 直接编辑）
 ═══════════════════════════════════════════════════ */
-function renderPreview(manualTitle){
-  const finalTitle=manualTitle||detectedTitle||'';
-  const subtitle=document.getElementById('docSubtitle').value.trim();
+function renderPreview(){
+  const finalTitle   = confirmedTitle   || detectedTitle || '';
+  const finalSubtitle= confirmedSubtitle|| '';
 
   let html='';
 
@@ -854,24 +1009,26 @@ function renderPreview(manualTitle){
   if(finalTitle){
     html+=`<div class="pv-row"><p class="pv-text pv-doc-title">${esc(finalTitle)}</p></div>`;
   } else {
-    html+=`<div class="pv-row pv-title-missing"><p class="pv-text" style="color:#E65100;font-size:13px;">⚠ 未识别到主标题，请在上方输入框填写</p></div>`;
+    html+=`<div class="pv-row pv-title-missing"><p class="pv-text" style="color:#E65100;font-size:13px;">⚠ 未识别到主标题，请移除文件后重新上传并在面板中填写</p></div>`;
   }
-  if(subtitle){
-    html+=`<div class="pv-row"><p class="pv-text pv-subtitle">${esc(subtitle)}</p></div>`;
+  if(finalSubtitle){
+    html+=`<div class="pv-row"><p class="pv-text pv-subtitle">${esc(finalSubtitle)}</p></div>`;
   }
-  if(finalTitle||subtitle){
+  if(finalTitle||finalSubtitle){
     html+=`<div class="pv-row"><p class="pv-text pv-blank">&nbsp;</p></div>`;
   }
 
   let autoNumCount=0;
   let splitTitleCount=0;
+  let wordHeadingCount=0;
 
   const SPECIAL_TYPES=['salutation','closing','sender','date'];
 
   for(const p of parsedParas){
     const isSpecial=SPECIAL_TYPES.includes(p.type);
-    const isSplitT=p.isSplitTitle&&p.suspect;
-    const isTable=p.type==='table';
+    const isSplitT =p.isSplitTitle&&p.suspect;
+    const isWordH  =p.isWordHeading;
+    const isTable  =p.type==='table';
     const doTableRender=document.getElementById('o_table').checked;
     const lineStyle=document.getElementById('o_table_line').value;
 
@@ -879,6 +1036,7 @@ function renderPreview(manualTitle){
     if(isSpecial) rowClass+=' special-line';
     if(isSplitT)  rowClass+=' split-title';
     if(isTable)   rowClass+=' table-row';
+    if(isWordH)   rowClass+=' word-heading-row';
 
     // 行内标注徽标
     let badges='';
@@ -894,8 +1052,12 @@ function renderPreview(manualTitle){
       splitTitleCount++;
       badges+=`<span class="pv-tag" style="background:#FFF3E0;color:#E65100;border-color:#FFCC80;">加粗标题↑请选层级</span>`;
     }
+    if(isWordH){
+      wordHeadingCount++;
+      badges+=`<span class="pv-tag" style="background:#E3F2FD;color:#1565C0;border-color:#90CAF9;">Word标题↑请选层级</span>`;
+    }
 
-    // 操作按钮（表格行不显示类型切换）
+    // 操作按钮
     let actions=`<span class="pv-actions">`;
     if(!isTable){
       if(p.type!=='doc-title') actions+=`<span class="pv-tag tag-title" onclick="setType('${p.id}','doc-title')">主标题</span>`;
@@ -927,27 +1089,8 @@ function renderPreview(manualTitle){
     if(isTable){
       html+=`<div class="${rowClass}" id="row-${p.id}">`;
       if(doTableRender&&p.tableData&&p.tableData.length){
-        // 渲染真实 HTML 表格
         const rows=p.tableData;
         const cols=Math.max(...rows.map(r=>r.length));
-        let tHtml=`<div class="pv-table-block">`;
-        tHtml+=`<table class="pv-table-real style-${lineStyle}">`;
-        rows.forEach((row,ri)=>{
-          const tag=ri===0?'th':'td';
-          const section=ri===0?'<thead><tr>':'<tbody><tr>';
-          const sectionClose=ri===0?'</tr></thead>':'</tr></tbody>';
-          if(ri===1) tHtml+='<tbody>';
-          tHtml+=`<tr>`;
-          row.forEach(cell=>{
-            tHtml+=`<${tag} style="text-align:${ri===0?'center':'left'}">${esc(cell.text||'')}</${tag}>`;
-          });
-          tHtml+=`</tr>`;
-          if(ri===0) tHtml='<table class="pv-table-real style-'+lineStyle+'"><thead><tr>'+
-            row.map(cell=>`<th style="text-align:center">${esc(cell.text||'')}</th>`).join('')+
-            '</tr></thead>';
-          if(ri===rows.length-1&&ri>0) tHtml+=`</tbody>`;
-        });
-        // 重新生成避免上面逻辑混乱
         let tRows='';
         rows.forEach((row,ri)=>{
           const isHead=ri===0;
@@ -959,15 +1102,10 @@ function renderPreview(manualTitle){
           });
           tRows+=isHead?'</tr></thead>':'</tr>';
         });
-        // 包裹 tbody
-        const firstNonHead=tRows.indexOf('</thead>')+8;
-        const bodyPart=tRows.slice(firstNonHead);
-        const headPart=tRows.slice(0,firstNonHead);
-        const finalTable=`<table class="pv-table-real style-${lineStyle}">${headPart}<tbody>${bodyPart}</tbody></table>`;
-        tHtml=`<div class="pv-table-block">${finalTable}<div class="pv-table-info">${rows.length}行×${cols}列 · ${lineStyle==='three'?'三线表':'全框线'}</div></div>`;
+        const hEnd=tRows.indexOf('</thead>')+8;
+        const tHtml=`<div class="pv-table-block"><table class="pv-table-real style-${lineStyle}">${tRows.slice(0,hEnd)}<tbody>${tRows.slice(hEnd)}</tbody></table><div class="pv-table-info">${rows.length}行×${cols}列 · ${lineStyle==='three'?'三线表':'全框线'}</div></div>`;
         html+=tHtml;
       } else {
-        // 未启用表格排版或无数据，显示占位符
         html+=`<p class="pv-text pv-table">${esc(p.text)}</p>`;
       }
       html+=actions;
@@ -987,12 +1125,15 @@ function renderPreview(manualTitle){
   document.getElementById('pvbody').classList.add('on');
   document.getElementById('pvempty').style.display='none';
 
-  const total=autoNumCount+splitTitleCount;
+  const total=autoNumCount+splitTitleCount+wordHeadingCount;
   const banner=document.getElementById('confirmBanner');
   if(total>0){
     banner.classList.add('on');
-    document.getElementById('confirmCount').textContent=(autoNumCount>0?autoNumCount+'处自动编号':'')+
-      (splitTitleCount>0?(autoNumCount>0?' + ':'')+splitTitleCount+'处加粗标题待确认':'');
+    const parts=[];
+    if(autoNumCount>0)    parts.push(autoNumCount+'处自动编号（橙色）');
+    if(splitTitleCount>0) parts.push(splitTitleCount+'处加粗标题（橙色）');
+    if(wordHeadingCount>0)parts.push(wordHeadingCount+'处Word标题样式（蓝色）');
+    document.getElementById('confirmCount').textContent=parts.join(' + ');
   } else {
     banner.classList.remove('on');
   }
@@ -1022,10 +1163,10 @@ function setType(id,newType){
   }
   if(newType==='doc-title') parsedParas.forEach(x=>{if(x.type==='doc-title'&&x.id!==id){x.type='body';x.suspect=false;}});
   if(newType==='subtitle')  parsedParas.forEach(x=>{if(x.type==='subtitle'&&x.id!==id){x.type='body';x.suspect=false;}});
-  p.type=newType;p.suspect=false;p.autoNum=false;p.isSplitTitle=false;
+  p.type=newType;p.suspect=false;p.autoNum=false;p.isSplitTitle=false;p.isWordHeading=false;
   const wrap=document.getElementById('pvwrap');
   const st=wrap.scrollTop;
-  renderPreview(document.getElementById('docTitle').value.trim());
+  renderPreview();
   wrap.scrollTop=st;
   showToast('已设为：'+({'doc-title':'主标题','subtitle':'副标题','h1':'一级标题','h2':'二级标题','h3':'三级标题','h4':'四级标题','body':'正文','salutation':'称呼行','closing':'结语','sender':'落款单位','date':'落款日期'}[newType]||newType));
 }
@@ -1036,7 +1177,7 @@ function undoAutoNum(id){
   p.text=p.origText;p.type='body';p.autoNum=false;p.suspect=false;
   const wrap=document.getElementById('pvwrap');
   const st=wrap.scrollTop;
-  renderPreview(document.getElementById('docTitle').value.trim());
+  renderPreview();
   wrap.scrollTop=st;
   showToast('已撤销自动编号');
 }
@@ -1229,12 +1370,10 @@ async function exportDocx(){
       return `<w:tbl>${tblPr}${tblGrid}${rowsXml}</w:tbl>`;
     }
 
-    const manualTitle=document.getElementById('docTitle').value.trim();
-    const subtitle=document.getElementById('docSubtitle').value.trim();
-    const docTitlePara=parsedParas.find(p=>p.type==='doc-title');
-    const subtitlePara=parsedParas.find(p=>p.type==='subtitle');
-    const finalTitle=manualTitle||(docTitlePara?docTitlePara.text:'')||detectedTitle||'';
-    const finalSubtitle=subtitle||(subtitlePara?subtitlePara.text:'')||'';
+    const docTitlePara  =parsedParas.find(p=>p.type==='doc-title');
+    const subtitlePara  =parsedParas.find(p=>p.type==='subtitle');
+    const finalTitle    =confirmedTitle   ||(docTitlePara?docTitlePara.text:'')||detectedTitle||'';
+    const finalSubtitle =confirmedSubtitle||(subtitlePara?subtitlePara.text:'')||'';
 
     const SZ3=32; // 三号 16pt
     const SZ2=44; // 二号 22pt
