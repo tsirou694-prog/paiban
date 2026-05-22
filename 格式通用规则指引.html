@@ -1,0 +1,285 @@
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-size: 15px; }
+  .wrap { padding: 20px 0 32px; max-width: 660px; }
+  h2 { font-size: 18px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 18px; }
+  .section { margin-bottom: 24px; }
+  .section-title {
+    font-size: 13px; font-weight: 500; text-transform: none;
+    color: var(--color-text-secondary);
+    border-bottom: 1px solid var(--color-border-tertiary);
+    padding-bottom: 6px; margin-bottom: 12px; letter-spacing: .04em;
+  }
+  .item { display: flex; gap: 12px; margin-bottom: 10px; align-items: flex-start; }
+  .tag {
+    flex-shrink: 0; min-width: 72px;
+    font-size: 12px; font-weight: 500; padding: 2px 8px;
+    border-radius: 4px; text-align: center; line-height: 1.7;
+    background: var(--color-background-secondary);
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border-tertiary);
+  }
+  .tag.req { background: #E6F1FB; color: #0C447C; border-color: #B5D4F4; }
+  .tag.opt { background: #EAF3DE; color: #27500A; border-color: #C0DD97; }
+  .tag.cond { background: #FAEEDA; color: #633806; border-color: #FAC775; }
+  @media (prefers-color-scheme: dark) {
+    .tag.req { background: #0C447C; color: #B5D4F4; border-color: #185FA5; }
+    .tag.opt { background: #27500A; color: #C0DD97; border-color: #3B6D11; }
+    .tag.cond { background: #633806; color: #FAC775; border-color: #854F0B; }
+  }
+  .desc { font-size: 14px; color: var(--color-text-primary); line-height: 1.65; }
+  .desc strong { font-weight: 500; }
+  .desc .note { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; display: block; }
+  .legend { display: flex; gap: 16px; margin-bottom: 20px; font-size: 12px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .dot { width: 10px; height: 10px; border-radius: 2px; }
+  .dot.req  { background: #378ADD; }
+  .dot.opt  { background: #639922; }
+  .dot.cond { background: #BA7517; }
+
+  .page-demo {
+    border: 1px solid var(--color-border-secondary);
+    border-radius: 8px;
+    padding: 0;
+    overflow: hidden;
+    margin-bottom: 20px;
+    font-size: 13px;
+    color: var(--color-text-primary);
+  }
+  .page-header {
+    background: var(--color-background-secondary);
+    border-bottom: 1px solid var(--color-border-tertiary);
+    padding: 8px 14px;
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    font-weight: 500;
+  }
+  .page-inner { padding: 10px 14px 14px; }
+  .red-line {
+    border: none; border-top: 2px solid #cc1a1a;
+    margin: 6px 0;
+  }
+  .doc-version-mark { font-size: 11px; color: var(--color-text-tertiary); text-align: right; margin-bottom: 2px; }
+  .doc-issuer { font-size: 18px; font-weight: 500; color: #cc1a1a; text-align: center; margin: 4px 0; letter-spacing: .1em; }
+  .doc-type-badge {
+    display: inline-block; font-size: 11px; padding: 1px 6px;
+    border-radius: 3px; background: #E6F1FB; color: #0C447C; margin-left: 6px;
+  }
+  @media (prefers-color-scheme: dark) {
+    .doc-issuer { color: #f26b6b; }
+    .doc-type-badge { background: #0C447C; color: #B5D4F4; }
+  }
+  .doc-title { font-size: 15px; font-weight: 500; text-align: center; margin: 8px 0 4px; }
+  .doc-meta { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 2px; }
+  .doc-body { font-size: 12px; line-height: 1.7; color: var(--color-text-primary); margin: 6px 0; }
+  .doc-sig { text-align: right; font-size: 12px; color: var(--color-text-primary); margin-top: 8px; }
+  .doc-seal { display: inline-block; width: 48px; height: 48px; border: 2px solid #cc1a1a; border-radius: 50%; font-size: 9px; color: #cc1a1a; text-align: center; line-height: 48px; vertical-align: middle; margin-left: 6px; }
+  @media (prefers-color-scheme: dark) { .doc-seal { border-color: #f26b6b; color: #f26b6b; } }
+  .version-row { display: flex; justify-content: space-between; font-size: 11px; color: var(--color-text-tertiary); }
+  .divider { border: none; border-top: 1px solid var(--color-border-tertiary); margin: 18px 0; }
+  .spec-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 6px; }
+  .spec-table th { font-weight: 500; text-align: left; padding: 5px 8px; background: var(--color-background-secondary); color: var(--color-text-secondary); border-bottom: 1px solid var(--color-border-tertiary); }
+  .spec-table td { padding: 6px 8px; border-bottom: 1px solid var(--color-border-tertiary); vertical-align: top; color: var(--color-text-primary); line-height: 1.55; }
+  .spec-table tr:last-child td { border-bottom: none; }
+  .highlight { background: var(--color-background-secondary); border-radius: 6px; padding: 10px 14px; font-size: 13px; color: var(--color-text-secondary); line-height: 1.7; margin-bottom: 8px; }
+  .highlight strong { color: var(--color-text-primary); }
+</style>
+
+<div class="wrap">
+
+  <h2>公文格式要素编排规则</h2>
+  <div style="font-size:12px;color:var(--color-text-tertiary);margin-bottom:16px;">依据 GB/T 9704—2012《党政机关公文格式》</div>
+
+  <div class="legend">
+    <div class="legend-item"><div class="dot req"></div><span style="color:var(--color-text-secondary)">必备要素</span></div>
+    <div class="legend-item"><div class="dot opt"></div><span style="color:var(--color-text-secondary)">可选要素</span></div>
+    <div class="legend-item"><div class="dot cond"></div><span style="color:var(--color-text-secondary)">条件要素</span></div>
+  </div>
+
+  <!-- 版式预览 -->
+  <div class="page-demo">
+    <div class="page-header">公文版面示意（简化）</div>
+    <div class="page-inner">
+      <div class="version-row"><span>份号 ×× 密级 ×× 保密期限</span><span>紧急程度</span></div>
+      <div style="text-align:center;margin:6px 0 2px;">
+        <span class="doc-issuer">××机关<span class="doc-type-badge">发文机关标志</span></span>
+      </div>
+      <div style="font-size:11px;color:var(--color-text-tertiary);text-align:center;margin-bottom:4px;">发文字号</div>
+      <hr class="red-line"/>
+      <div class="doc-title">关于××××的通知</div>
+      <div class="doc-meta">主送机关：××××</div>
+      <div class="doc-body">正文内容……如有附件，列于此处之后。</div>
+      <div class="doc-sig">
+        发文机关署名<br>
+        <span style="font-size:11px;color:var(--color-text-tertiary)">成文日期</span>
+        <div class="doc-seal">印</div>
+      </div>
+      <hr class="red-line" style="margin-top:10px;"/>
+      <div style="font-size:11px;color:var(--color-text-tertiary);display:flex;justify-content:space-between;">
+        <span>附注（如需）</span><span>页码</span>
+      </div>
+      <div style="margin-top:6px;font-size:11px;color:var(--color-text-tertiary);">
+        版记：抄送机关 / 印发机关 / 印发日期
+      </div>
+    </div>
+  </div>
+
+  <!-- 一、版头 -->
+  <div class="section">
+    <div class="section-title">一、版头（公文首页红线以上部分）</div>
+
+    <div class="item">
+      <div class="tag cond">份号</div>
+      <div class="desc">涉密公文必须编份号，一般为 6 位阿拉伯数字，顶格标注于第一行左侧。</div>
+    </div>
+    <div class="item">
+      <div class="tag cond">密级与保密期限</div>
+      <div class="desc">涉密公文标注，位于份号下一行左侧。密级用"绝密""机密""秘密"，后标"★"与保密期限，如"秘密★5年"。</div>
+    </div>
+    <div class="item">
+      <div class="tag cond">紧急程度</div>
+      <div class="desc">需紧急处理时标注，位于密级同行右侧或另行。电报用"特急""加急"，公文用"特急""急件"。</div>
+    </div>
+    <div class="item">
+      <div class="tag req">发文机关标志</div>
+      <div class="desc">
+        公文最核心的版头标识，居中印制。分两种形式：<br>
+        <span class="note">① <strong>全称或规范化简称＋"文件"</strong>，如"国家税务总局文件"，用醒目字体（通常红色）印制；</span>
+        <span class="note">② 联合行文时，主办机关排列在前，各机关名称依次排列。</span>
+      </div>
+    </div>
+    <div class="item">
+      <div class="tag req">发文字号</div>
+      <div class="desc">
+        由发文机关代字＋年份＋顺序号组成，居中标注于发文机关标志下方、分隔线上方。<br>
+        <span class="note">示例：国税发〔2024〕15号 — 年份用六角括号"〔〕"，不用方括号"[]"。</span>
+        <span class="note">联合行文只标主办机关发文字号，无需并列多个。</span>
+      </div>
+    </div>
+    <div class="item">
+      <div class="tag cond">签发人</div>
+      <div class="desc">上行文（下级报上级）须标注签发人姓名，位于发文字号右侧，两者在同一行。联合上行文标注所有签发人。</div>
+    </div>
+  </div>
+
+  <!-- 二、主体 -->
+  <div class="section">
+    <div class="section-title">二、主体（分隔线以下至版记之间）</div>
+
+    <div class="item">
+      <div class="tag req">标题</div>
+      <div class="desc">
+        居中排列，一般由"发文机关名称＋事由＋文种"组成，如"××市人民政府关于推进数字经济发展的通知"。
+        <span class="note">标题中除法规、规章名称加书名号外，一般不用标点符号。回文可省略发文机关。</span>
+      </div>
+    </div>
+    <div class="item">
+      <div class="tag cond">主送机关</div>
+      <div class="desc">
+        下行文、平行文须标注，顶格写于标题下方，后加冒号。上行文通常只有一个主送机关。
+        <span class="note">普发性公文（如公告、通告）可省略主送机关。</span>
+      </div>
+    </div>
+    <div class="item">
+      <div class="tag req">正文</div>
+      <div class="desc">
+        公文核心内容，首行缩进 2 字，回行顶格。结构层次序数依次为：一、（一）、1.、（1）——不可跳级使用。
+        <span class="note">正文中的结构层次标题可加粗，但不得单独成页。</span>
+      </div>
+    </div>
+    <div class="item">
+      <div class="tag opt">附件说明</div>
+      <div class="desc">正文末尾、发文机关署名之前标注。"附件："后用阿拉伯数字标明序号和名称，如有多件，每件另起一行，序号对齐。</div>
+    </div>
+    <div class="item">
+      <div class="tag req">发文机关署名</div>
+      <div class="desc">
+        公文右下方，使用发文机关全称或规范化简称。联合行文时，发文机关从左至右排列，与印章对应。
+      </div>
+    </div>
+    <div class="item">
+      <div class="tag req">成文日期</div>
+      <div class="desc">
+        位于发文机关署名右侧同行或下方，用阿拉伯数字将年月日标全，如"2024年3月15日"。
+        <span class="note">联合行文以最后一个机关负责人签发日期为准。电报以发出日期为准。</span>
+      </div>
+    </div>
+    <div class="item">
+      <div class="tag req">印章</div>
+      <div class="desc">
+        加盖发文机关印章，压骑年号下弦（即印章下边缘压过成文日期中的年份数字）。
+        <span class="note">联合行文：各机关印章并排，从左至右顺序加盖，不相互叠压。如无法全部加盖，主办机关印章居中，其余依次排列。</span>
+        <span class="note">电子印章须符合国家相关标准。</span>
+      </div>
+    </div>
+    <div class="item">
+      <div class="tag opt">附注</div>
+      <div class="desc">需要说明的其他事项，如"（此件公开发布）"，用圆括号标注于成文日期左下方、版记之前。</div>
+    </div>
+  </div>
+
+  <!-- 三、版记 -->
+  <div class="section">
+    <div class="section-title">三、版记（末页最下方）</div>
+    <div class="highlight">版记与正文之间用一条分隔线隔开，版记内各要素之间用细分隔线分隔，末条与公文最后一条文字之间无须加线。</div>
+    <div class="item">
+      <div class="tag cond">抄送机关</div>
+      <div class="desc">需要告知但不直接受理的机关，位于版记第一行（如有），顶格标注"抄送："，各机关之间用顿号，末尾用句号。</div>
+    </div>
+    <div class="item">
+      <div class="tag req">印发机关与印发日期</div>
+      <div class="desc">版记最后一行，左侧"××印发"，右侧为印发日期，均用阿拉伯数字。印发日期一般晚于或等于成文日期。</div>
+    </div>
+    <div class="item">
+      <div class="tag opt">页码</div>
+      <div class="desc">用阿拉伯数字居中标注，置于版记上方、公文正文各页底部。版记所在页码不标注。附件与正文一体装订时，页码连续编排。</div>
+    </div>
+  </div>
+
+  <!-- 四、常见规格 -->
+  <div class="section">
+    <div class="section-title">四、常用版面规格</div>
+    <table class="spec-table">
+      <thead>
+        <tr><th>项目</th><th>规格要求</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>纸张</td><td>A4（210mm×297mm），纵向使用</td></tr>
+        <tr><td>页边距</td><td>上 37mm，下 35mm，左 28mm，右 26mm</td></tr>
+        <tr><td>正文字体字号</td><td>仿宋体，三号（16pt）</td></tr>
+        <tr><td>标题字体字号</td><td>二号小标宋体（黑体），居中</td></tr>
+        <tr><td>发文字号字体</td><td>仿宋体，三号，居中</td></tr>
+        <tr><td>行间距</td><td>每页 22 行，行距 28pt（固定值）</td></tr>
+        <tr><td>每行字数</td><td>每行 28 字</td></tr>
+        <tr><td>分隔线</td><td>红色（版头）或黑色（版记），线粗 0.35mm，与版心等宽</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 五、几个易错点 -->
+  <div class="section">
+    <div class="section-title">五、常见易错点</div>
+    <div class="item">
+      <div class="tag" style="min-width:72px;text-align:center;">发文字号</div>
+      <div class="desc">年份须用六角括号"〔〕"，不能用"（）"或"[]"；顺序号不加"第"字，不编虚位，即用"1"不用"001"。</div>
+    </div>
+    <div class="item">
+      <div class="tag" style="min-width:72px;text-align:center;">印章位置</div>
+      <div class="desc">印章须压骑年号，不能整体偏上或偏下，签发人姓名旁加盖的是签名章，与公文印章不同。</div>
+    </div>
+    <div class="item">
+      <div class="tag" style="min-width:72px;text-align:center;">层次序号</div>
+      <div class="desc">四级结构须严格按照"一、→（一）→1.→（1）"顺序递进，不得跨级，不得重复使用同一级标号。</div>
+    </div>
+    <div class="item">
+      <div class="tag" style="min-width:72px;text-align:center;">联合行文</div>
+      <div class="desc">联合行文的机关须有隶属关系或业务指导关系，不得与无关机关联合；主办机关排列最前，承担主要责任。</div>
+    </div>
+    <div class="item">
+      <div class="tag" style="min-width:72px;text-align:center;">附件</div>
+      <div class="desc">正文中须先提及附件（"见附件"或"如附件所示"），再在附件说明处列名，顺序一致。附件不作为独立文件单独流转。</div>
+    </div>
+  </div>
+
+</div>
